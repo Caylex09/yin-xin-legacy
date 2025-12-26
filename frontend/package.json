@@ -1,0 +1,29 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.4"
+  },
+  "dependencies": {
+    "@types/dompurify": "^3.0.5",
+    "@vitejs/plugin-react": "^5.1.2",
+    "dompurify": "^3.3.1",
+    "katex": "^0.16.27",
+    "marked": "^17.0.1",
+    "marked-katex-extension": "^5.1.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.11.0",
+    "socket.io-client": "^4.8.1"
+  }
+}

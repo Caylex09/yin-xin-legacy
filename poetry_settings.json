@@ -1,0 +1,17 @@
+{
+  "searchableAttributes": ["title", "author", "tags", "content"],
+  "filterableAttributes": ["dynasty", "tags", "author"],
+  "displayedAttributes": [
+    "id",
+    "title",
+    "author",
+    "dynasty",
+    "tags",
+    "content",
+    "translation",
+    "about",
+    "appreciation"
+  ],
+  "sortableAttributes": []
+}
+

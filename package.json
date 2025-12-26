@@ -1,0 +1,26 @@
+{
+  "name": "yin-xin",
+  "version": "1.0.0",
+  "description": "启动方式：",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Caylex09/yin-xin.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Caylex09/yin-xin/issues"
+  },
+  "homepage": "https://github.com/Caylex09/yin-xin#readme",
+  "dependencies": {
+    "dompurify": "^3.3.1",
+    "github-markdown-css": "^5.8.1",
+    "marked": "^17.0.1"
+  }
+}

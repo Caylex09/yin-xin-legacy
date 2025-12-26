@@ -1,0 +1,7 @@
+{
+  "searchableAttributes": ["name", "description", "content", "dynasty"],
+  "filterableAttributes": ["dynasty"],
+  "displayedAttributes": ["id", "name", "dynasty", "description", "content", "avatar"],
+  "sortableAttributes": []
+}
+
