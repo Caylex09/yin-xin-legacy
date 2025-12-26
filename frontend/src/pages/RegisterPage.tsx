@@ -3,12 +3,13 @@ import { useNavigate, Link } from "react-router-dom";
 import { API_BASE } from "../layout";
 import { register, sendCode } from "../auth";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { useState } from "react";
 
 export function RegisterPage() {
   usePageTitle("注册");
   const navigate = useNavigate();
-  const [msg, setMsg] = React.useState("");
-  const [sending, setSending] = React.useState(false);
+  const [msg, setMsg] = useState("");
+  const [sending, setSending] = useState(false);
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;

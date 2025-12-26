@@ -3,13 +3,14 @@ import { Link } from "react-router-dom";
 import { API_BASE } from "../../layout";
 import { getToken } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useEffect, useState } from "react";
 
 export function AdminFixPoetPage() {
   usePageTitle("修复诗人数据");
-  const [list, setList] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [nextOffset, setNextOffset] = React.useState<number | null>(0);
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [nextOffset, setNextOffset] = useState<number | null>(0);
 
   const fetchBatch = async (offset: number) => {
     setLoading(true);
@@ -29,7 +30,7 @@ export function AdminFixPoetPage() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchBatch(0);
   }, []);
 

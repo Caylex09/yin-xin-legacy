@@ -6,11 +6,11 @@ import { usePageTitle } from "../hooks/usePageTitle";
 export function Home() {
   usePageTitle("首页");
   const navigate = useNavigate();
-  const [line, setLine] = React.useState<any>(null);
-  const [lineError, setLineError] = React.useState("");
-  const [lineLoading, setLineLoading] = React.useState(false);
-  const [poetInfo, setPoetInfo] = React.useState<any>(null);
-  const [summary, setSummary] = React.useState<{ poetryCount: number; poetCount: number } | null>(null);
+  const [line, setLine] = useState<any>(null);
+  const [lineError, setLineError] = useState("");
+  const [lineLoading, setLineLoading] = useState(false);
+  const [poetInfo, setPoetInfo] = useState<any>(null);
+  const [summary, setSummary] = useState<{ poetryCount: number; poetCount: number } | null>(null);
 
   const onSearch = () => {
     const input = document.querySelector<HTMLInputElement>("#search-input");
@@ -20,7 +20,7 @@ export function Home() {
     navigate(`/search?q=${encodeURIComponent(q)}`);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     const loadLine = async () => {
       setLineLoading(true);
       setLineError("");
@@ -50,7 +50,7 @@ export function Home() {
     loadLine();
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch(`${API_BASE}/stats/summary`)
       .then(async (r) => {
         const d = await r.json();

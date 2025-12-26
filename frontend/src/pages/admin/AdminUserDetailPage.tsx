@@ -4,16 +4,17 @@ import { API_BASE } from "../../layout";
 import { getToken, type ProfileWithRole } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { roleText, formatDate } from "../../utils/format";
+import { useCallback, useEffect, useState } from "react";
 
 export function AdminUserDetailPage() {
   usePageTitle("用户详情");
   const { uid } = useParams();
-  const [data, setData] = React.useState<any>(null);
-  const [error, setError] = React.useState("");
-  const [msg, setMsg] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const load = React.useCallback(async () => {
+  const load = useCallback(async () => {
     try {
       const token = getToken();
       if (!token) throw new Error("请先登录");
@@ -30,7 +31,7 @@ export function AdminUserDetailPage() {
     }
   }, [uid]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (uid) load();
   }, [uid, load]);
 

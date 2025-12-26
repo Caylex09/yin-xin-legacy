@@ -4,6 +4,7 @@ import { API_BASE } from "../layout";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { formatDate } from "../utils/format";
 import { getToken, fetchProfile, type ProfileWithRole } from "../auth";
+import { useCallback, useEffect, useState } from "react";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   open: { label: "进行中", color: "#4caf50" },
@@ -14,17 +15,17 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 export function TicketListPage() {
   usePageTitle("工单区");
-  const [tickets, setTickets] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<string>("");
-  const [profile, setProfile] = React.useState<ProfileWithRole | null>(null);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [profile, setProfile] = useState<ProfileWithRole | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchProfile(API_BASE).then((p) => setProfile(p)).catch(() => setProfile(null));
   }, []);
 
-  const loadTickets = React.useCallback(async () => {
+  const loadTickets = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -40,7 +41,7 @@ export function TicketListPage() {
     }
   }, [statusFilter]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadTickets();
   }, [loadTickets]);
 

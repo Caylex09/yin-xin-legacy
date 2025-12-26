@@ -4,12 +4,13 @@ import { API_BASE } from "../layout";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { getToken } from "../auth";
+import { useState } from "react";
 
 export function DiscussionNewPage() {
   const navigate = useNavigate();
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [form, setForm] = React.useState({ title: "", content: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ title: "", content: "" });
 
   usePageTitle("发布新讨论");
 

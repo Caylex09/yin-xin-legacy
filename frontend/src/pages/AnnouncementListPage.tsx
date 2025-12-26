@@ -9,17 +9,18 @@ import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 import { Toast } from "../components/Toast";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { useCallback, useEffect, useState } from "react";
 
 export function AnnouncementListPage() {
   usePageTitle("公告");
-  const [announcements, setAnnouncements] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [profile, setProfile] = React.useState<ProfileWithRole | null>(null);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [profile, setProfile] = useState<ProfileWithRole | null>(null);
   const { toast, showToast, hideToast } = useToast();
   const { confirm, showConfirm, hideConfirm } = useConfirm();
 
-  const loadAnnouncements = React.useCallback(async (includeDeleted = false) => {
+  const loadAnnouncements = useCallback(async (includeDeleted = false) => {
     setLoading(true);
     setError("");
     try {
@@ -34,7 +35,7 @@ export function AnnouncementListPage() {
     }
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchProfile(API_BASE).then((p) => {
       setProfile(p);
       const includeDeleted = p?.role && p.role > 0 && p.isAnnouncementAdmin ? true : false;

@@ -3,13 +3,14 @@ import { Link } from "react-router-dom";
 import { API_BASE } from "../../layout";
 import { fetchProfile, getToken, type ProfileWithRole } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useEffect, useState } from "react";
 
 export function AdminPoetPage() {
   usePageTitle("诗人管理");
-  const [list, setList] = React.useState<any[]>([]);
-  const [q, setQ] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [form, setForm] = React.useState<any>({
+  const [list, setList] = useState<any[]>([]);
+  const [q, setQ] = useState("");
+  const [error, setError] = useState("");
+  const [form, setForm] = useState<any>({
     id: "",
     name: "",
     dynasty: "",
@@ -17,7 +18,7 @@ export function AdminPoetPage() {
     content: "",
     avatar: "yinxin.png",
   });
-  const [profile, setProfile] = React.useState<ProfileWithRole | null>(null);
+  const [profile, setProfile] = useState<ProfileWithRole | null>(null);
 
   const load = async () => {
     setError("");
@@ -37,7 +38,7 @@ export function AdminPoetPage() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

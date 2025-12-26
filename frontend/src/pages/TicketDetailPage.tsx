@@ -9,6 +9,7 @@ import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 import { Toast } from "../components/Toast";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { useCallback, useEffect, useState } from "react";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   open: { label: "进行中", color: "#4caf50" },
@@ -20,22 +21,22 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 export function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [ticket, setTicket] = React.useState<any>(null);
-  const [replies, setReplies] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [profile, setProfile] = React.useState<ProfileWithRole | null>(null);
-  const [replyContent, setReplyContent] = React.useState("");
-  const [submittingReply, setSubmittingReply] = React.useState(false);
-  const [closing, setClosing] = React.useState(false);
+  const [ticket, setTicket] = useState<any>(null);
+  const [replies, setReplies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [profile, setProfile] = useState<ProfileWithRole | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const [closing, setClosing] = useState(false);
   const { toast, showToast, hideToast } = useToast();
   const { confirm, showConfirm, hideConfirm } = useConfirm();
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchProfile(API_BASE).then((p) => setProfile(p)).catch(() => setProfile(null));
   }, []);
 
-  const loadTicket = React.useCallback(async () => {
+  const loadTicket = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError("");
@@ -57,7 +58,7 @@ export function TicketDetailPage() {
     }
   }, [id]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadTicket();
   }, [loadTicket]);
 

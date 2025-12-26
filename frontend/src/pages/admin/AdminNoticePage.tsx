@@ -3,17 +3,18 @@ import { Link } from "react-router-dom";
 import { API_BASE } from "../../layout";
 import { getToken } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useEffect, useState } from "react";
 
 export function AdminNoticePage() {
   usePageTitle("管理员通知");
-  const [content, setContent] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [ok, setOk] = React.useState("");
-  const [editing, setEditing] = React.useState(false);
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [ok, setOk] = useState("");
+  const [editing, setEditing] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError("");

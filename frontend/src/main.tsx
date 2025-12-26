@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useSearchParams, useParams } from "react-router-dom";
 import "./style.css";
@@ -39,12 +39,12 @@ import { PoemSnakeRoomPage } from "./pages/game/PoemSnakeRoomPage";
 
 function OnlinePage() {
   usePageTitle("在线用户");
-  const [online, setOnline] = React.useState<any[]>([]);
-  const [error, setError] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [avatars, setAvatars] = React.useState<Record<number, string>>({});
+  const [online, setOnline] = useState<any[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [avatars, setAvatars] = useState<Record<number, string>>({});
 
-  React.useEffect(() => {
+  useEffect(() => {
     let timer: any;
     const token = getToken();
     const ping = async () => {
@@ -139,12 +139,12 @@ function RankingPage() {
   const [params, setParams] = useSearchParams();
   const pageParam = Math.max(Number(params.get("page") || "1"), 1);
   const pageSize = 20;
-  const [list, setList] = React.useState<any[]>([]);
-  const [total, setTotal] = React.useState(0);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
+  const [list, setList] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const load = React.useCallback(
+  const load = useCallback(
     async (page: number) => {
       setLoading(true);
       setError("");
@@ -163,7 +163,7 @@ function RankingPage() {
     [pageSize]
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     load(pageParam);
   }, [load, pageParam]);
 
@@ -241,16 +241,16 @@ function Search() {
   const [params] = useSearchParams();
   const q = params.get("q") || "";
   const navigate = useNavigate();
-  const [hits, setHits] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [authors, setAuthors] = React.useState<Record<string, { name?: string; dynasty?: string }>>({});
-  const [poets, setPoets] = React.useState<any[]>([]);
-  const [loadingPoets, setLoadingPoets] = React.useState(false);
-  const [errorPoets, setErrorPoets] = React.useState("");
-  const [hasMorePoetry, setHasMorePoetry] = React.useState(true);
-  const [hasMorePoets, setHasMorePoets] = React.useState(true);
-  const [isSearching, setIsSearching] = React.useState(false);
+  const [hits, setHits] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [authors, setAuthors] = useState<Record<string, { name?: string; dynasty?: string }>>({});
+  const [poets, setPoets] = useState<any[]>([]);
+  const [loadingPoets, setLoadingPoets] = useState(false);
+  const [errorPoets, setErrorPoets] = useState("");
+  const [hasMorePoetry, setHasMorePoetry] = useState(true);
+  const [hasMorePoets, setHasMorePoets] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
 
   const doSearch = () => {
     const input = document.querySelector<HTMLInputElement>("#search-input");
@@ -260,7 +260,7 @@ function Search() {
     navigate(`/search?q=${encodeURIComponent(val)}`);
   };
 
-  const fetchPoetry = React.useCallback(
+  const fetchPoetry = useCallback(
     async (offset: number, append: boolean) => {
       if (!append) setLoading(true);
       try {
@@ -330,7 +330,7 @@ function Search() {
     [q]
   );
 
-  const fetchPoets = React.useCallback(
+  const fetchPoets = useCallback(
     async (offset: number, append: boolean) => {
       if (!append) setLoadingPoets(true);
       try {
@@ -372,7 +372,7 @@ function Search() {
     [q]
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!q) {
       setHits([]);
       setPoets([]);
@@ -526,13 +526,13 @@ function Search() {
 function PoetryPage() {
   usePageTitle("诗词详情");
   const { id } = useParams();
-  const [data, setData] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [authorInfo, setAuthorInfo] = React.useState<any>(null);
-  const [authorError, setAuthorError] = React.useState("");
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [authorInfo, setAuthorInfo] = useState<any>(null);
+  const [authorError, setAuthorError] = useState("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError("");
@@ -547,7 +547,7 @@ function PoetryPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const aid = data?.author;
     if (!aid) {
       setAuthorInfo(null);
@@ -633,20 +633,20 @@ function PoetryPage() {
 function PoetPage() {
   usePageTitle("诗人详情");
   const { id } = useParams();
-  const [data, setData] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [poetryList, setPoetryList] = React.useState<any[]>([]);
-  const [poetryLoading, setPoetryLoading] = React.useState(false);
-  const [poetryOffset, setPoetryOffset] = React.useState(0);
-  const [hasMorePoetry, setHasMorePoetry] = React.useState(true);
-  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [poetryList, setPoetryList] = useState<any[]>([]);
+  const [poetryLoading, setPoetryLoading] = useState(false);
+  const [poetryOffset, setPoetryOffset] = useState(0);
+  const [hasMorePoetry, setHasMorePoetry] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const poetName = data?.name || data?.title || data?.author || data?.id || "诗人详情";
   const poetDynasty = data?.dynasty || data?.era || data?.dynastyName || "";
 
   // 加载作者信息
-  React.useEffect(() => {
+  useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError("");
@@ -662,7 +662,7 @@ function PoetPage() {
   }, [id]);
 
   // 加载作者的诗文
-  const loadPoetry = React.useCallback(async (reset: boolean = false) => {
+  const loadPoetry = useCallback(async (reset: boolean = false) => {
     if (!id) return;
     const limit = 20;
     const offset = reset ? 0 : poetryOffset;
@@ -702,7 +702,7 @@ function PoetPage() {
   }, [id, poetryOffset]);
 
   // 初始加载诗文（仅在 id 变化时重置）
-  React.useEffect(() => {
+  useEffect(() => {
     if (id) {
       setPoetryList([]);
       setPoetryOffset(0);
@@ -870,12 +870,12 @@ function App() {
 function ProfilePage() {
   usePageTitle("个人主页");
   const { uid } = useParams();
-  const [profile, setProfile] = React.useState<any>(null);
-  const [error, setError] = React.useState("");
-  const [rankInfo, setRankInfo] = React.useState<{ rank: number; score: number; total: number } | null>(null);
-  const [rankError, setRankError] = React.useState("");
+  const [profile, setProfile] = useState<any>(null);
+  const [error, setError] = useState("");
+  const [rankInfo, setRankInfo] = useState<{ rank: number; score: number; total: number } | null>(null);
+  const [rankError, setRankError] = useState("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     const load = async () => {
       try {
         if (uid) {
@@ -903,7 +903,7 @@ function ProfilePage() {
     load();
   }, [uid]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const loadRank = async () => {
       if (!profile?.uid) return;
       try {
@@ -957,22 +957,22 @@ function ProfileEditPage() {
   usePageTitle("编辑个人资料");
   const { uid } = useParams();
   const navigate = useNavigate();
-  const [self, setSelf] = React.useState<ProfileWithRole | null>(null);
-  const [error, setError] = React.useState("");
-  const [nameMsg, setNameMsg] = React.useState("");
-  const [pwdMsg, setPwdMsg] = React.useState("");
-  const [emailMsg, setEmailMsg] = React.useState("");
-  const [nameInput, setNameInput] = React.useState("");
-  const [oldPwd, setOldPwd] = React.useState("");
-  const [newPwd, setNewPwd] = React.useState("");
-  const [newEmail, setNewEmail] = React.useState("");
-  const [code, setCode] = React.useState("");
-  const [oldEmailCode, setOldEmailCode] = React.useState("");
-  const [sending, setSending] = React.useState(false);
-  const [sendingOldCode, setSendingOldCode] = React.useState(false);
-  const [oldEmailVerified, setOldEmailVerified] = React.useState(false);
+  const [self, setSelf] = useState<ProfileWithRole | null>(null);
+  const [error, setError] = useState("");
+  const [nameMsg, setNameMsg] = useState("");
+  const [pwdMsg, setPwdMsg] = useState("");
+  const [emailMsg, setEmailMsg] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [oldPwd, setOldPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [oldEmailCode, setOldEmailCode] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendingOldCode, setSendingOldCode] = useState(false);
+  const [oldEmailVerified, setOldEmailVerified] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchProfile(API_BASE)
       .then((p) => setSelf(p))
       .catch(() => setSelf(null));
@@ -1293,11 +1293,11 @@ function ProfileEditPage() {
 
 function AboutPage() {
   usePageTitle("关于我们");
-  const [admins, setAdmins] = React.useState<any[]>([]);
-  const [error, setError] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError("");

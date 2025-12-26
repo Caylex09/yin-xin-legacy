@@ -4,14 +4,15 @@ import { API_BASE } from "../../layout";
 import { getToken, fetchProfile, type ProfileWithRole } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { roleText, formatDate } from "../../utils/format";
+import { useEffect, useState } from "react";
 
 export function AdminUserPage() {
   usePageTitle("用户管理");
-  const [admins, setAdmins] = React.useState<any[]>([]);
-  const [error, setError] = React.useState("");
-  const [searchUid, setSearchUid] = React.useState("");
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [error, setError] = useState("");
+  const [searchUid, setSearchUid] = useState("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     const token = getToken();
     if (!token) {
       setError("请先登录");

@@ -4,17 +4,18 @@ import { API_BASE } from "../../layout";
 import { getToken } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { splitSentences } from "../../utils/poetry.tsx";
+import { useCallback, useEffect, useState } from "react";
 
 export function AdminPoetryEditPage() {
   usePageTitle("编辑诗词");
   const { id } = useParams();
-  const [data, setData] = React.useState<any>(null);
-  const [error, setError] = React.useState("");
-  const [msg, setMsg] = React.useState("");
-  const [rawJson, setRawJson] = React.useState("");
-  const [rawMsg, setRawMsg] = React.useState("");
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
+  const [rawJson, setRawJson] = useState("");
+  const [rawMsg, setRawMsg] = useState("");
 
-  const load = React.useCallback(async () => {
+  const load = useCallback(async () => {
     if (!id) return;
     setError("");
     try {
@@ -28,7 +29,7 @@ export function AdminPoetryEditPage() {
     }
   }, [id]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     load();
   }, [load]);
 

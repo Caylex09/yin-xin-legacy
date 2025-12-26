@@ -9,25 +9,26 @@ import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 import { Toast } from "../components/Toast";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { useCallback, useEffect, useState } from "react";
 
 export function DiscussionDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const [discussion, setDiscussion] = React.useState<any>(null);
-    const [replies, setReplies] = React.useState<any[]>([]);
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState("");
-    const [profile, setProfile] = React.useState<ProfileWithRole | null>(null);
-    const [replyContent, setReplyContent] = React.useState("");
-    const [submittingReply, setSubmittingReply] = React.useState(false);
+    const [discussion, setDiscussion] = useState<any>(null);
+    const [replies, setReplies] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [profile, setProfile] = useState<ProfileWithRole | null>(null);
+    const [replyContent, setReplyContent] = useState("");
+    const [submittingReply, setSubmittingReply] = useState(false);
     const { toast, showToast, hideToast } = useToast();
     const { confirm, showConfirm, hideConfirm } = useConfirm();
 
-    React.useEffect(() => {
+    useEffect(() => {
         fetchProfile(API_BASE).then((p) => setProfile(p)).catch(() => setProfile(null));
     }, []);
 
-    const loadDiscussion = React.useCallback(async () => {
+    const loadDiscussion = useCallback(async () => {
         if (!id) return;
         setLoading(true);
         setError("");
@@ -49,7 +50,7 @@ export function DiscussionDetailPage() {
         }
     }, [id]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         loadDiscussion();
     }, [loadDiscussion]);
 

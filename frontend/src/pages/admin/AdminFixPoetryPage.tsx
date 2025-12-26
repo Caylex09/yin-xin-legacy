@@ -4,14 +4,15 @@ import { API_BASE } from "../../layout";
 import { getToken } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { renderSegments } from "../../utils/poetry.tsx";
+import { useEffect, useState } from "react";
 
 export function AdminFixPoetryPage() {
   usePageTitle("修复诗词数据");
-  const [list, setList] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [nextOffset, setNextOffset] = React.useState<number | null>(0);
-  const [authors, setAuthors] = React.useState<Record<string, { name?: string; dynasty?: string }>>({});
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [nextOffset, setNextOffset] = useState<number | null>(0);
+  const [authors, setAuthors] = useState<Record<string, { name?: string; dynasty?: string }>>({});
 
   const fetchBatch = async (offset: number) => {
     setLoading(true);
@@ -31,11 +32,11 @@ export function AdminFixPoetryPage() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchBatch(0);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const ids = Array.from(
       new Set(
         (list || [])

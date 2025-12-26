@@ -3,11 +3,12 @@ import { useNavigate, Link } from "react-router-dom";
 import { API_BASE } from "../layout";
 import { login } from "../auth";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { useState } from "react";
 
 export function LoginPage() {
   usePageTitle("登录");
   const navigate = useNavigate();
-  const [msg, setMsg] = React.useState("");
+  const [msg, setMsg] = useState("");
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;

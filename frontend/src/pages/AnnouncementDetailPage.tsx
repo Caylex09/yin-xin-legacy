@@ -9,22 +9,23 @@ import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 import { Toast } from "../components/Toast";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { useEffect, useState } from "react";
 
 export function AnnouncementDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [announcement, setAnnouncement] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [profile, setProfile] = React.useState<ProfileWithRole | null>(null);
+  const [announcement, setAnnouncement] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [profile, setProfile] = useState<ProfileWithRole | null>(null);
   const { toast, showToast, hideToast } = useToast();
   const { confirm, showConfirm, hideConfirm } = useConfirm();
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchProfile(API_BASE).then((p) => setProfile(p)).catch(() => setProfile(null));
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError("");

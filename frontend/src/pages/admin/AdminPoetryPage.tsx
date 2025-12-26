@@ -4,14 +4,15 @@ import { API_BASE } from "../../layout";
 import { getToken, fetchProfile, type ProfileWithRole } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { renderSegments, splitSentences } from "../../utils/poetry.tsx";
+import { useEffect, useState } from "react";
 
 export function AdminPoetryPage() {
   usePageTitle("诗词管理");
-  const [list, setList] = React.useState<any[]>([]);
-  const [q, setQ] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [form, setForm] = React.useState<any>({ id: "", title: "", author: "", dynasty: "", content: "", tags: "" });
-  const [profile, setProfile] = React.useState<ProfileWithRole | null>(null);
+  const [list, setList] = useState<any[]>([]);
+  const [q, setQ] = useState("");
+  const [error, setError] = useState("");
+  const [form, setForm] = useState<any>({ id: "", title: "", author: "", dynasty: "", content: "", tags: "" });
+  const [profile, setProfile] = useState<ProfileWithRole | null>(null);
 
   const load = async () => {
     setError("");
@@ -30,7 +31,7 @@ export function AdminPoetryPage() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

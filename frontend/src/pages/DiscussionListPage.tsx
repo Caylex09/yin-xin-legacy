@@ -8,16 +8,17 @@ import { useToast } from "../hooks/useToast";
 import { useConfirm } from "../hooks/useConfirm";
 import { Toast } from "../components/Toast";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { useCallback, useEffect, useState } from "react";
 
 export function DiscussionListPage() {
   usePageTitle("讨论区");
-  const [discussions, setDiscussions] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
+  const [discussions, setDiscussions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const { toast, showToast, hideToast } = useToast();
   const { confirm, showConfirm, hideConfirm } = useConfirm();
 
-  const loadDiscussions = React.useCallback(async () => {
+  const loadDiscussions = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -32,7 +33,7 @@ export function DiscussionListPage() {
     }
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadDiscussions();
   }, [loadDiscussions]);
 

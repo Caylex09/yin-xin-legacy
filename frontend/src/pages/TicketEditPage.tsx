@@ -4,17 +4,18 @@ import { API_BASE } from "../layout";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { getToken } from "../auth";
+import { useEffect, useState } from "react";
 
 export function TicketEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [ticket, setTicket] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
-  const [form, setForm] = React.useState({ title: "", content: "" });
+  const [ticket, setTicket] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ title: "", content: "" });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError("");

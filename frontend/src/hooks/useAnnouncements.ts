@@ -1,18 +1,19 @@
 // import React from "react";
 import { API_BASE } from "../layout";
 import { fetchProfile, getToken, type ProfileWithRole } from "../auth";
+import { useCallback, useEffect, useState } from "react";
 
 export function useAnnouncements() {
-  const [announcements, setAnnouncements] = React.useState<any[]>([]);
-  const [annLoading, setAnnLoading] = React.useState(false);
-  const [annError, setAnnError] = React.useState("");
-  const [annForm, setAnnForm] = React.useState<{ id?: number; title: string; content: string }>({
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [annLoading, setAnnLoading] = useState(false);
+  const [annError, setAnnError] = useState("");
+  const [annForm, setAnnForm] = useState<{ id?: number; title: string; content: string }>({
     title: "",
     content: "",
   });
-  const [profile, setProfile] = React.useState<ProfileWithRole | null>(null);
+  const [profile, setProfile] = useState<ProfileWithRole | null>(null);
 
-  const loadAnnouncements = React.useCallback(async (includeDeleted = false) => {
+  const loadAnnouncements = useCallback(async (includeDeleted = false) => {
     setAnnLoading(true);
     setAnnError("");
     try {
@@ -93,7 +94,7 @@ export function useAnnouncements() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchProfile(API_BASE).then((p) => {
       setProfile(p);
       // 主页默认不加载已删除公告
