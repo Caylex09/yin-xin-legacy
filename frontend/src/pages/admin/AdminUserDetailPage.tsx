@@ -1,4 +1,4 @@
-import React from "react";
+// import React from "react";
 import { Link, useParams } from "react-router-dom";
 import { API_BASE } from "../../layout";
 import { getToken, type ProfileWithRole } from "../../auth";
@@ -116,12 +116,12 @@ export function AdminUserDetailPage() {
       setData((prev: any) =>
         prev
           ? {
-              ...prev,
-              is_announcement_admin: field === "announcement" ? (value ? 1 : 0) : prev.is_announcement_admin,
-              is_wiki_admin: field === "wiki" ? (value ? 1 : 0) : prev.is_wiki_admin,
-              is_super_admin: field === "super" ? (value ? 1 : 0) : prev.is_super_admin,
-              is_game_admin: field === "game" ? (value ? 1 : 0) : prev.is_game_admin,
-            }
+            ...prev,
+            is_announcement_admin: field === "announcement" ? (value ? 1 : 0) : prev.is_announcement_admin,
+            is_wiki_admin: field === "wiki" ? (value ? 1 : 0) : prev.is_wiki_admin,
+            is_super_admin: field === "super" ? (value ? 1 : 0) : prev.is_super_admin,
+            is_game_admin: field === "game" ? (value ? 1 : 0) : prev.is_game_admin,
+          }
           : prev
       );
       setMsg("权限已更新");
