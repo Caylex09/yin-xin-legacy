@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import "katex/dist/katex.min.css";
@@ -38,7 +38,8 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     if (!containerRef.current) return;
 
     // 将 Markdown 转换为 HTML（包含 LaTeX 公式）
-    const rawHtml = marked(content);
+    // marked.parse() 在同步模式下返回字符串
+    const rawHtml = marked.parse(content) as string;
 
     // 使用 DOMPurify 清理 HTML，防止 XSS 攻击
     // 配置允许的标签和属性，包括 KaTeX 生成的元素
