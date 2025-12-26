@@ -88,12 +88,12 @@ echo "构建前端..."
 npm run build
 
 # 复制到 Nginx 目录（如果存在）
-if [ -d "/var/www/html" ]; then
-    echo "复制前端文件到 /var/www/html..."
-    sudo cp -r dist/* /var/www/html/
+if [ -d "/var/www/yinxin" ]; then
+    echo "复制前端文件到 /var/www/yinxin..."
+    sudo cp -r dist/* /var/www/yinxin/
     echo "前端文件已更新"
 else
-    echo "提示: /var/www/html 不存在，请手动复制 dist 目录内容到 Web 服务器目录"
+    echo "提示: /var/www/yinxin 不存在，请手动复制 dist 目录内容到 Web 服务器目录"
 fi
 
 cd ..
