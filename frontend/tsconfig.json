@@ -11,7 +11,7 @@
     "types": [
       "vite/client"
     ],
-    "jsx": "react-react",
+    "jsx": "react-jsx",
     "skipLibCheck": true,
     /* Bundler mode */
     "moduleResolution": "bundler",
