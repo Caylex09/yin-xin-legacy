@@ -56,7 +56,8 @@ backend/data/*.db-wal
 data.ms/
 
 # 用户数据目录
-data/
+data/poetry.json
+data/poetry.ndjson
 !data/.gitkeep
 
 # 数据转储目录
