@@ -87,13 +87,38 @@ npm install
 echo "构建前端..."
 npm run build
 
-# 复制到 Nginx 目录（如果存在）
-if [ -d "/var/www/yinxin" ]; then
-    echo "复制前端文件到 /var/www/yinxin..."
-    sudo cp -r dist/* /var/www/yinxin/
-    echo "前端文件已更新"
+# 检查构建结果
+if [ ! -d "dist" ] || [ ! -f "dist/index.html" ]; then
+    echo "错误: 前端构建失败，dist 目录不存在或为空"
+    exit 1
+fi
+
+echo "✅ 前端构建完成"
+echo "   构建目录: $(pwd)/dist"
+echo ""
+
+# 注意：Nginx 配置的 root 目录应该指向 frontend/dist
+# 如果 Nginx 配置正确，不需要复制文件，因为构建就在正确的位置
+# 如果需要复制到其他位置，可以取消下面的注释并修改路径
+
+# 检查 Nginx 配置的 root 目录
+NGINX_ROOT="/var/www/yinxin/frontend/dist"
+if [ -d "$NGINX_ROOT" ]; then
+    # 如果 Nginx root 目录存在且不同，则复制
+    CURRENT_DIST="$(pwd)/dist"
+    if [ "$CURRENT_DIST" != "$NGINX_ROOT" ]; then
+        echo "复制前端文件到 Nginx 目录: $NGINX_ROOT"
+        sudo rm -rf "$NGINX_ROOT"/*
+        sudo cp -r dist/* "$NGINX_ROOT/"
+        sudo chown -R www-data:www-data "$NGINX_ROOT" 2>/dev/null || true
+        echo "✅ 前端文件已更新到 Nginx 目录"
+    else
+        echo "ℹ️  构建目录与 Nginx root 目录相同，无需复制"
+    fi
 else
-    echo "提示: /var/www/yinxin 不存在，请手动复制 dist 目录内容到 Web 服务器目录"
+    echo "⚠️  Nginx root 目录不存在: $NGINX_ROOT"
+    echo "   请检查 Nginx 配置，确保 root 指向正确的目录"
+    echo "   当前构建目录: $(pwd)/dist"
 fi
 
 cd ..
