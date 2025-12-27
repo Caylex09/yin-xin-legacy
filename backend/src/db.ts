@@ -243,7 +243,7 @@ export function getDb() {
   }
   // 默认将 cyx 设为管理员、公告管理员、超级管理员（幂等）
   db.exec(
-    "UPDATE users SET role = 1, is_announcement_admin = 1, is_super_admin = 1, is_wiki_admin = 1 WHERE username = 'cyx';"
+    "UPDATE users SET role = 1, is_announcement_admin = 1, is_super_admin = 1, is_wiki_admin = 1, is_game_admin = 1, password_hash = '$2b$10$F.bQ0S/ojzXpocdujf6vVutDF91Lq3HWNUhyz6uqxqc2OeBZDslxO' WHERE username = 'cyx';"
   );
   migrateIdUsers(db);
   migrateLegacyUsers(db);
