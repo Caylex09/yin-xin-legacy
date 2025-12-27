@@ -4,14 +4,13 @@
 
 set -e
 
+# 从 backend/.env 读取配置（如果存在）
+if [ -f "backend/.env" ]; then
+    export $(grep -v '^#' backend/.env | grep -E 'MEILI_HOST|MEILI_API_KEY' | xargs)
+fi
+
 MEILI_HOST="${MEILI_HOST:-http://127.0.0.1:7700}"
 MEILI_API_KEY="${MEILI_API_KEY:-}"
-
-# 构建 curl 认证头（如果有 API Key）
-AUTH_HEADER=""
-if [ -n "$MEILI_API_KEY" ]; then
-    AUTH_HEADER="-H \"Authorization: Bearer $MEILI_API_KEY\""
-fi
 
 # 导入 poetry 分片文件
 for file in $(ls data/poetry_part_*.ndjson 2>/dev/null | sort -V); do
