@@ -82,11 +82,11 @@ if [ -f "${POETRY_FILES[0]}" ]; then
             curl -s -X POST "$MEILI_HOST/indexes/poetry/documents?primaryKey=id" \
                 -H "Authorization: Bearer $MEILI_API_KEY" \
                 -H "Content-Type: application/x-ndjson" \
-                --data-binary "@$file" > /dev/null
+                --data-binary "@$file"
         else
             curl -s -X POST "$MEILI_HOST/indexes/poetry/documents?primaryKey=id" \
                 -H "Content-Type: application/x-ndjson" \
-                --data-binary "@$file" > /dev/null
+                --data-binary "@$file"
         fi
     done
 elif [ -f "data/poetry.ndjson" ]; then
