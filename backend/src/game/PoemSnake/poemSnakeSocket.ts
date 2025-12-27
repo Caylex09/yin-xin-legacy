@@ -191,7 +191,7 @@ export function setupPoemSnakeSocket(
 
       const isGameAdmin = currentUser.is_game_admin === 1;
       const userScore = currentUser.score || 0;
-      const SKIP_COST = 20;
+      const SKIP_COST = 1;
 
       // 检查权限和积分
       if (!isGameAdmin && userScore < SKIP_COST) {

@@ -1362,7 +1362,7 @@ function GamesPage() {
     {
       title: "古诗（）谜",
       link: "/game/poem-snake",
-      desc: "公屏随机古诗文，你需输入含高亮字的一句古诗词，在线人数为 x 获得 x 分；20 分可跳过一个字；支持 Ctrl+Enter 提交。支持 1v1 随机匹配对手和自建房与好友娱乐。1v1 匹配得分更高！",
+      desc: "公屏随机古诗文，你需输入含高亮字的一句古诗词，在线人数为 x 获得 x 分；1 分可跳过一个字；支持 Ctrl+Enter 提交。支持 1v1 随机匹配对手和自建房与好友娱乐。1v1 匹配得分更高！",
       note: "灵感来源于 https://github.com/poem-snake/poem-snake",
     },
   ];
