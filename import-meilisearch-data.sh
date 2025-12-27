@@ -67,12 +67,42 @@ echo ""
 
 # 检查 MeiliSearch 连接
 echo "🔌 检查 MeiliSearch 连接..."
-if ! curl -s "$MEILI_HOST/health" > /dev/null; then
-    echo "❌ 无法连接到 MeiliSearch: $MEILI_HOST"
-    echo "   请确保 MeiliSearch 服务正在运行"
+echo "   尝试连接: $MEILI_HOST/health"
+
+# 尝试连接，检查 HTTP 状态码
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$MEILI_HOST/health" 2>&1)
+CURL_EXIT=$?
+
+if [ $CURL_EXIT -ne 0 ]; then
+    echo "❌ curl 命令执行失败 (退出码: $CURL_EXIT)"
+    echo "   错误信息: $(curl -s "$MEILI_HOST/health" 2>&1)"
+    echo ""
+    echo "🔍 诊断步骤："
+    echo "   1. 检查 MeiliSearch 服务状态:"
+    echo "      sudo systemctl status meilisearch"
+    echo ""
+    echo "   2. 检查 MeiliSearch 是否在运行:"
+    echo "      ps aux | grep meilisearch"
+    echo ""
+    echo "   3. 检查端口是否监听:"
+    echo "      sudo netstat -tlnp | grep 7700"
+    echo "      或"
+    echo "      sudo ss -tlnp | grep 7700"
+    echo ""
+    echo "   4. 尝试手动测试:"
+    echo "      curl $MEILI_HOST/health"
+    echo ""
     exit 1
 fi
-echo "✅ MeiliSearch 连接正常"
+
+if [ "$HTTP_CODE" != "200" ]; then
+    echo "❌ MeiliSearch 返回异常状态码: $HTTP_CODE"
+    echo "   响应内容: $(curl -s "$MEILI_HOST/health")"
+    echo ""
+    exit 1
+fi
+
+echo "✅ MeiliSearch 连接正常 (HTTP $HTTP_CODE)"
 echo ""
 
 # 检查 Node.js
