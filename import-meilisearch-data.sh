@@ -11,7 +11,7 @@ echo ""
 
 # 配置
 MEILI_HOST="${MEILI_HOST:-http://127.0.0.1:7700}"
-MEILI_API_KEY="${MEILI_API_KEY:-}"
+MEILI_API_KEY="$1"
 
 # 如果有 API Key，添加到 curl 命令
 CURL_AUTH=""
