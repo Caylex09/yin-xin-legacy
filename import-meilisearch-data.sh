@@ -11,8 +11,26 @@ echo ""
 
 PROJECT_DIR="/var/www/yinxin"
 DATA_DIR="$PROJECT_DIR/data"
+BACKEND_ENV="$PROJECT_DIR/backend/.env"
+
+# 从 backend/.env 读取 MeiliSearch 配置
+if [ -f "$BACKEND_ENV" ]; then
+    # 读取环境变量
+    export $(grep -v '^#' "$BACKEND_ENV" | grep -E 'MEILI_HOST|MEILI_API_KEY' | xargs)
+fi
+
 MEILI_HOST="${MEILI_HOST:-http://127.0.0.1:7700}"
 MEILI_API_KEY="${MEILI_API_KEY:-}"
+
+# 检查 API Key
+if [ -z "$MEILI_API_KEY" ]; then
+    echo "❌ 错误: MEILI_API_KEY 未设置"
+    echo "   请确保 backend/.env 文件中包含 MEILI_API_KEY"
+    echo "   或通过环境变量设置: export MEILI_API_KEY=your_key"
+    exit 1
+fi
+
+echo "🔑 MeiliSearch API Key: ${MEILI_API_KEY:0:10}..." # 只显示前10个字符
 
 # 检查项目目录
 if [ ! -d "$PROJECT_DIR" ]; then
@@ -74,10 +92,64 @@ const MEILI_HOST = process.env.MEILI_HOST || 'http://127.0.0.1:7700';
 const MEILI_API_KEY = process.env.MEILI_API_KEY || '';
 const DATA_DIR = process.env.DATA_DIR || './data';
 
+// 检查 API Key
+if (!MEILI_API_KEY) {
+  console.error('❌ 错误: MEILI_API_KEY 未设置');
+  console.error('   请确保设置了环境变量 MEILI_API_KEY');
+  process.exit(1);
+}
+
+console.log(`🔑 使用 MeiliSearch: ${MEILI_HOST}`);
+console.log(`🔑 API Key: ${MEILI_API_KEY.substring(0, 10)}...`);
+
 const client = new MeiliSearch({
   host: MEILI_HOST,
   apiKey: MEILI_API_KEY,
 });
+
+async function waitForTask(indexUid, maxWait = 30) {
+  let waitCount = 0;
+  while (waitCount < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const tasks = await client.getTasks({ indexUids: [indexUid], limit: 1 });
+      const task = tasks.results[0];
+      
+      if (!task || task.status === 'succeeded') {
+        return true;
+      }
+      if (task.status === 'failed') {
+        throw new Error(task.error?.message || 'Task failed');
+      }
+    } catch (e) {
+      // 如果获取任务失败，继续等待
+      if (e.message && !e.message.includes('Task failed')) {
+        // 网络错误等，继续等待
+      } else {
+        throw e;
+      }
+    }
+    waitCount++;
+  }
+  return false;
+}
+
+async function addDocumentsWithRetry(index, documents, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const task = await index.addDocuments(documents);
+      // 简单等待，不阻塞
+      return task;
+    } catch (e) {
+      if (i === retries - 1) {
+        throw e;
+      }
+      const waitTime = (i + 1) * 2000; // 递增等待时间
+      console.log(`\n   ⚠️  导入失败，${waitTime/1000}秒后重试 ${i + 1}/${retries}...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+  }
+}
 
 async function importFile(index, filePath) {
   if (!fs.existsSync(filePath)) {
@@ -92,7 +164,7 @@ async function importFile(index, filePath) {
 
   const documents = [];
   let lineCount = 0;
-  const BATCH_SIZE = 1000;
+  const BATCH_SIZE = 100; // 减小批次大小，避免请求过大
 
   for await (const line of rl) {
     if (line.trim()) {
@@ -103,19 +175,28 @@ async function importFile(index, filePath) {
         
         // 批量导入
         if (documents.length >= BATCH_SIZE) {
-          await index.addDocuments(documents);
-          process.stdout.write(`\r   📦 已导入 ${lineCount} 条记录...`);
+          try {
+            await addDocumentsWithRetry(index, documents);
+            process.stdout.write(`\r   📦 已导入 ${lineCount} 条记录...`);
+          } catch (e) {
+            console.error(`\n   ❌ 导入失败 (行 ${lineCount}): ${e.message}`);
+            // 继续处理，不中断
+          }
           documents.length = 0; // 清空数组
         }
       } catch (e) {
-        console.error(`\n   ❌ 解析错误 (行 ${lineCount + 1}): ${e.message}`);
+        console.error(`\n   ❌ JSON 解析错误 (行 ${lineCount + 1}): ${e.message}`);
       }
     }
   }
 
   // 导入剩余文档
   if (documents.length > 0) {
-    await index.addDocuments(documents);
+    try {
+      await addDocumentsWithRetry(index, documents);
+    } catch (e) {
+      console.error(`\n   ❌ 导入剩余文档失败: ${e.message}`);
+    }
   }
 
   return lineCount;
@@ -160,30 +241,38 @@ async function importIndex(indexName, filePaths) {
     console.log(`\r   ✅ ${fileName}: ${count} 条记录`);
   }
 
-  console.log(`   ✅ 导入完成，共 ${totalCount} 条记录`);
+  console.log(`\n   ✅ 导入完成，共 ${totalCount} 条记录`);
   
-  // 等待索引完成
-  console.log(`   ⏳ 等待索引完成...`);
-  let task;
+  // 等待所有任务完成
+  console.log(`   ⏳ 等待所有索引任务完成...`);
+  let allTasksDone = false;
   let waitCount = 0;
-  do {
+  const maxWait = 300; // 最多等待 10 分钟
+  
+  while (!allTasksDone && waitCount < maxWait) {
     await new Promise(resolve => setTimeout(resolve, 2000));
-    const tasks = await client.getTasks({ indexUids: [indexName], limit: 1 });
-    task = tasks.results[0];
-    waitCount++;
-    if (waitCount % 5 === 0) {
-      process.stdout.write(`\r   ⏳ 等待中... (${waitCount * 2}秒)`);
+    const tasks = await client.getTasks({ indexUids: [indexName], limit: 10 });
+    
+    const pendingTasks = tasks.results.filter(t => 
+      t.status === 'enqueued' || t.status === 'processing'
+    );
+    
+    if (pendingTasks.length === 0) {
+      allTasksDone = true;
+    } else {
+      waitCount++;
+      if (waitCount % 5 === 0) {
+        process.stdout.write(`\r   ⏳ 等待中... (${waitCount * 2}秒, ${pendingTasks.length} 个任务进行中)`);
+      }
     }
-  } while (task && (task.status === 'enqueued' || task.status === 'processing'));
+  }
   
   console.log(''); // 换行
   
-  if (task?.status === 'succeeded') {
-    console.log(`   ✅ 索引完成`);
-  } else if (task?.status === 'failed') {
-    console.log(`   ❌ 索引失败: ${task.error?.message || 'unknown error'}`);
+  if (allTasksDone) {
+    console.log(`   ✅ 所有索引任务完成`);
   } else {
-    console.log(`   ✅ 索引处理完成`);
+    console.log(`   ⚠️  等待超时，但可能仍在处理中`);
   }
 }
 
@@ -294,6 +383,15 @@ else
     USE_PARTS_FLAG="false"
 fi
 
+# 显示配置信息（用于调试）
+echo "📋 运行配置："
+echo "   MEILI_HOST: $MEILI_HOST"
+echo "   MEILI_API_KEY: ${MEILI_API_KEY:0:10}... (已设置)"
+echo "   DATA_DIR: $DATA_DIR"
+echo "   USE_PARTS: $USE_PARTS_FLAG"
+echo ""
+
+# 运行导入脚本，确保传递所有环境变量
 MEILI_HOST="$MEILI_HOST" \
 MEILI_API_KEY="$MEILI_API_KEY" \
 DATA_DIR="$DATA_DIR" \
