@@ -872,5 +872,55 @@ sudo tail -f /var/log/nginx/access.log
 
 ---
 
+## 重置用户密码
+
+如果忘记了用户密码，可以使用命令行脚本重置：
+
+### 方法一：使用 tsx（推荐，无需编译）
+
+```bash
+# 进入后端目录
+cd /var/www/yinxin/backend
+
+# 重置密码
+npx tsx scripts/reset-password.ts <用户名> <新密码>
+
+# 示例：重置 cyx 用户的密码
+npx tsx scripts/reset-password.ts cyx newpassword123
+```
+
+### 方法二：使用 shell 脚本
+
+```bash
+# 进入项目根目录
+cd /var/www/yinxin
+
+# 给脚本执行权限
+chmod +x backend/scripts/reset-password.sh
+
+# 运行脚本
+./backend/scripts/reset-password.sh <用户名> <新密码>
+
+# 示例
+./backend/scripts/reset-password.sh cyx newpassword123
+```
+
+### 方法三：使用 PowerShell（Windows）
+
+```powershell
+# 进入项目根目录
+cd D:\yin-xin
+
+# 运行脚本
+.\backend\scripts\reset-password.ps1 cyx newpassword123
+```
+
+**注意**：
+- 重置密码后，该用户的所有现有登录 token 将失效，需要重新登录
+- 密码长度至少为 6 个字符
+- 确保后端服务已停止或使用独立的数据库连接，避免冲突
+
+---
+
 **最后更新**：2024年
 
