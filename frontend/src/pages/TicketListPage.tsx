@@ -18,7 +18,7 @@ export function TicketListPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("open");
   const [profile, setProfile] = useState<ProfileWithRole | null>(null);
 
   useEffect(() => {

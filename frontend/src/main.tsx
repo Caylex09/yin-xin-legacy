@@ -638,6 +638,7 @@ function PoetPage() {
   const [error, setError] = useState("");
   const [poetryList, setPoetryList] = useState<any[]>([]);
   const [poetryLoading, setPoetryLoading] = useState(false);
+  const [poetryError, setPoetryError] = useState("");
   const [poetryOffset, setPoetryOffset] = useState(0);
   const [hasMorePoetry, setHasMorePoetry] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -668,6 +669,7 @@ function PoetPage() {
     const offset = reset ? 0 : poetryOffset;
 
     setPoetryLoading(reset);
+    setPoetryError("");
     if (!reset) setLoadingMore(true);
 
     try {
@@ -675,14 +677,17 @@ function PoetPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          q: "",
+          q: "*",
           limit,
           offset,
           authorId: id,
         }),
       });
       const result = await resp.json();
-      if (resp.ok && result.hits) {
+      if (!resp.ok) {
+        throw new Error(result.error || `HTTP ${resp.status}`);
+      }
+      if (result.hits) {
         if (reset) {
           setPoetryList(result.hits);
           setPoetryOffset(result.hits.length);
@@ -692,9 +697,21 @@ function PoetPage() {
         }
         // 如果返回的数据少于 limit，说明没有更多了
         setHasMorePoetry(result.hits.length === limit);
+      } else {
+        // 如果没有 hits 字段，可能是空结果
+        if (reset) {
+          setPoetryList([]);
+          setPoetryOffset(0);
+        }
+        setHasMorePoetry(false);
       }
     } catch (e) {
+      const errorMsg = (e as Error).message || "加载诗文失败";
       console.error("加载诗文失败:", e);
+      setPoetryError(errorMsg);
+      if (reset) {
+        setPoetryList([]);
+      }
     } finally {
       setPoetryLoading(false);
       setLoadingMore(false);
@@ -707,6 +724,7 @@ function PoetPage() {
       setPoetryList([]);
       setPoetryOffset(0);
       setHasMorePoetry(true);
+      setPoetryError("");
       // 直接在这里加载，避免依赖 loadPoetry
       const loadInitialPoetry = async () => {
         setPoetryLoading(true);
@@ -722,13 +740,23 @@ function PoetPage() {
             }),
           });
           const result = await resp.json();
-          if (resp.ok && result.hits) {
+          if (!resp.ok) {
+            throw new Error(result.error || `HTTP ${resp.status}`);
+          }
+          if (result.hits) {
             setPoetryList(result.hits);
             setPoetryOffset(result.hits.length);
             setHasMorePoetry(result.hits.length === 20);
+          } else {
+            setPoetryList([]);
+            setPoetryOffset(0);
+            setHasMorePoetry(false);
           }
         } catch (e) {
+          const errorMsg = (e as Error).message || "加载诗文失败";
           console.error("加载诗文失败:", e);
+          setPoetryError(errorMsg);
+          setPoetryList([]);
         } finally {
           setPoetryLoading(false);
         }
@@ -781,10 +809,11 @@ function PoetPage() {
       <section className="card">
         <h3>诗文作品</h3>
         {poetryLoading && <div className="muted">加载中...</div>}
-        {!poetryLoading && poetryList.length === 0 && (
+        {poetryError && <div className="muted">加载失败：{poetryError}</div>}
+        {!poetryLoading && !poetryError && poetryList.length === 0 && (
           <div className="muted">暂无诗文作品</div>
         )}
-        {!poetryLoading && poetryList.length > 0 && (
+        {!poetryLoading && !poetryError && poetryList.length > 0 && (
           <>
             <div className="hit-list">
               {poetryList.map((poem) => (

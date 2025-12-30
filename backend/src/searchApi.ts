@@ -25,8 +25,40 @@ type PoetSearchBody = {
   dynasty?: string;
 };
 
+// 配置 MeiliSearch 索引的 filterable attributes
+async function configureMeiliSearchIndexes() {
+  try {
+    // 配置 poetry 索引的 filterable attributes
+    const poetryIndex = client.index("poetry");
+    await poetryIndex.updateFilterableAttributes(["author", "dynasty", "tags"]);
+    console.log("✓ Configured filterable attributes for 'poetry' index: author, dynasty, tags");
+  } catch (e: any) {
+    // 如果索引不存在或已配置，忽略错误
+    if (!e.message?.includes("index_not_found") && !e.message?.includes("already")) {
+      console.warn("Warning: Could not configure poetry index filterable attributes:", e.message);
+    }
+  }
+
+  try {
+    // 配置 poets 索引的 filterable attributes
+    const poetsIndex = client.index("poets");
+    await poetsIndex.updateFilterableAttributes(["dynasty"]);
+    console.log("✓ Configured filterable attributes for 'poets' index: dynasty");
+  } catch (e: any) {
+    // 如果索引不存在或已配置，忽略错误
+    if (!e.message?.includes("index_not_found") && !e.message?.includes("already")) {
+      console.warn("Warning: Could not configure poets index filterable attributes:", e.message);
+    }
+  }
+}
+
 export function createSearchApiRouter(): Router {
   const router = Router();
+
+  // 在路由创建时配置索引（异步执行，不阻塞）
+  configureMeiliSearchIndexes().catch((e) => {
+    console.error("Error configuring MeiliSearch indexes:", e);
+  });
 
   router.post("/api/search/poetry", async (req: Request, res: Response) => {
     const {

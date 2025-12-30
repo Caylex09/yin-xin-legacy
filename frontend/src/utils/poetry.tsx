@@ -76,52 +76,48 @@ export const highlightContent = (content: any, query: string): string => {
   // 高亮关键词
   function highlightKeyword(text: string, keyword: string): string {
     if (!keyword) return escapeHtml(text);
+    
+    // 转义正则表达式特殊字符，但不转义 HTML（避免双重转义问题）
     const escapedKeyword = escapeRegex(keyword);
     const regex = new RegExp(`(${escapedKeyword})`, "gi");
-    return escapeHtml(text).replace(regex, '<span class="search-keyword">$1</span>');
-  }
-
-  // 检查是否包含关键词（不区分大小写）
-  function containsKeyword(text: string, keyword: string): boolean {
-    return text.toLowerCase().includes(keyword.toLowerCase());
-  }
-
-  // 按标点符号分割句子
-  const sentenceRegex = /[^，。！？；：,\.!?;:\n]+[，。！？；：,\.!?;:\n]?/g;
-  let sentenceParts: string[] = [];
-  let match;
-
-  while ((match = sentenceRegex.exec(fullText)) !== null) {
-    const sentence = match[0].trim();
-    if (sentence) {
-      sentenceParts.push(sentence);
+    
+    // 在原始文本上匹配，然后分别转义匹配部分和非匹配部分
+    const parts: Array<{ text: string; isMatch: boolean }> = [];
+    let lastIndex = 0;
+    let match;
+    
+    // 重置正则的 lastIndex
+    regex.lastIndex = 0;
+    
+    while ((match = regex.exec(text)) !== null) {
+      // 添加匹配前的文本
+      if (match.index > lastIndex) {
+        parts.push({ text: text.substring(lastIndex, match.index), isMatch: false });
+      }
+      // 添加匹配的文本
+      parts.push({ text: match[0], isMatch: true });
+      lastIndex = regex.lastIndex;
     }
-  }
-
-  // 如果没有找到句子分隔符，将整个文本作为一句话
-  if (sentenceParts.length === 0) {
-    sentenceParts = [fullText];
-  }
-
-  // 处理每个句子：如果包含关键词，给整句加背景色
-  const highlightedSentences = sentenceParts.map((sentence) => {
-    const trimmed = sentence.trim();
-    if (!trimmed) return "";
-
-    if (containsKeyword(trimmed, query)) {
-      // 高亮这个句子中的关键词
-      const highlighted = highlightKeyword(trimmed, query);
-      // 给整句加背景色
-      return `<span class="search-matched-sentence">${highlighted}</span>`;
-    } else {
-      // 普通句子也高亮关键词（以防万一有跨句匹配）
-      return highlightKeyword(trimmed, query);
+    
+    // 添加剩余的文本
+    if (lastIndex < text.length) {
+      parts.push({ text: text.substring(lastIndex), isMatch: false });
     }
-  });
+    
+    // 如果没有匹配，返回转义后的原始文本
+    if (parts.length === 0) {
+      return escapeHtml(text);
+    }
+    
+    // 分别转义各部分并组合
+    return parts.map(part => {
+      const escaped = escapeHtml(part.text);
+      return part.isMatch ? `<span class="search-keyword">${escaped}</span>` : escaped;
+    }).join("");
+  }
 
-  // 使用空字符串连接，避免复制时出现多余空格
-  // 通过 CSS 控制视觉间距
-  return highlightedSentences.filter(s => s).join("");
+  // 直接在整个文本上进行高亮（这样可以匹配跨句的关键词，包含标点符号的关键词也能正确匹配）
+  return highlightKeyword(fullText, query);
 };
 
 // 渲染带高亮的搜索结果

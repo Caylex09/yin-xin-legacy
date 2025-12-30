@@ -74,8 +74,40 @@ app.use((_, res) => {
   res.status(404).json({ error: "Not Found" });
 });
 
+// 配置 MeiliSearch 索引的 filterable attributes
+async function configureMeiliSearchIndexes() {
+  try {
+    // 配置 poetry 索引的 filterable attributes
+    const poetryIndex = client.index("poetry");
+    await poetryIndex.updateFilterableAttributes(["author", "dynasty", "tags"]);
+    console.log("✓ Configured filterable attributes for 'poetry' index: author, dynasty, tags");
+  } catch (e: any) {
+    // 如果索引不存在或已配置，忽略错误
+    if (!e.message?.includes("index_not_found") && !e.message?.includes("already")) {
+      console.warn("Warning: Could not configure poetry index filterable attributes:", e.message);
+    }
+  }
+
+  try {
+    // 配置 poets 索引的 filterable attributes
+    const poetsIndex = client.index("poets");
+    await poetsIndex.updateFilterableAttributes(["dynasty"]);
+    console.log("✓ Configured filterable attributes for 'poets' index: dynasty");
+  } catch (e: any) {
+    // 如果索引不存在或已配置，忽略错误
+    if (!e.message?.includes("index_not_found") && !e.message?.includes("already")) {
+      console.warn("Warning: Could not configure poets index filterable attributes:", e.message);
+    }
+  }
+}
+
 // 初始化 PoemSnake 游戏（包括 WebSocket、游戏状态、房间清理等）
 initializePoemSnake(io);
+
+// 配置 MeiliSearch 索引
+configureMeiliSearchIndexes().catch((e) => {
+  console.error("Error configuring MeiliSearch indexes:", e);
+});
 
 httpServer.listen(PORT, () => {
   console.log(`API listening on http://127.0.0.1:${PORT}`);
