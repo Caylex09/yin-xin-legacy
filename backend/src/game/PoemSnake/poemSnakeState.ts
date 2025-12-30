@@ -11,6 +11,8 @@ export const gameOnlineUsers = new Map<number, { username?: string; last: number
 export const userRoomStatus = new Map<number, string | null>();
 // 跳过投票超时计时器
 export const skipVoteTimers = new Map<string, NodeJS.Timeout>();
+// 结束房间投票超时计时器
+export const endVoteTimers = new Map<string, NodeJS.Timeout>();
 const ONLINE_TTL = 5 * 60 * 1000;
 
 // 计算公屏在线人数（排除所有在房间中的用户）

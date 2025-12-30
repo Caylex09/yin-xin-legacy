@@ -171,23 +171,23 @@ export function AdminUserDetailPage() {
         <form className="form" onSubmit={onSave}>
           <label>
             新用户名（可选）
-            <input name="username" type="text" maxLength={50} placeholder="不改留空" />
+            <input name="username" type="text" maxLength={50} placeholder="不改留空" autoComplete="off" />
           </label>
           <label>
             新邮箱（可选）
-            <input name="email" type="email" placeholder="不改留空" />
+            <input name="email" type="email" placeholder="不改留空" autoComplete="off" />
           </label>
           <label>
             新密码（可选）
-            <input name="password" type="password" placeholder="不改留空" />
+            <input name="password" type="password" placeholder="不改留空" autoComplete="new-password" />
           </label>
           <label>
             头像链接（可选）
-            <input name="avatar" type="url" placeholder="不改留空，默认使用 Gravatar" />
+            <input name="avatar" type="url" placeholder="不改留空，默认使用 Gravatar" autoComplete="off" />
           </label>
           <label>
             积分（可选）
-            <input name="score" type="number" placeholder="不改留空" />
+            <input name="score" type="number" placeholder="不改留空" autoComplete="off" />
           </label>
           <div className="muted small">以下权限/角色操作即时生效</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>

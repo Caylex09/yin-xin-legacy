@@ -1164,6 +1164,7 @@ function ProfileEditPage() {
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
             <input
+              autoComplete="off"
               className="nickname-input"
               type="text"
               value={nameInput}
@@ -1183,17 +1184,21 @@ function ProfileEditPage() {
         <div className="form">
           <label>
             原密码
-            <input type="password" value={oldPwd} onChange={(e) => setOldPwd(e.target.value)} />
+            <input type="password" value={oldPwd} autoComplete="off" onChange={(e) => setOldPwd(e.target.value)} />
           </label>
           <label>
             新密码（至少 6 位）
-            <input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} />
+            <input type="password" value={newPwd} autoComplete="off" onChange={(e) => setNewPwd(e.target.value)} />
           </label>
           <button className="btn" type="button" onClick={submitPwd}>
             保存密码
           </button>
           {pwdMsg && <div className="muted small">{pwdMsg}</div>}
         </div>
+      </div>
+      <div className="result-list">
+        <h3>修改头像</h3>
+        <p>本站头像与 <Link to="https://cn.gravatar.com/">Gravatar</Link> 同步，请前往 Gravatar 使用绑定邮箱登录后修改头像。</p>
       </div>
       <div className="result-list">
         <h3>切换绑定邮箱（双重验证）</h3>

@@ -289,10 +289,21 @@ export function PoemSnakeRoomPage() {
       setRoomOnline(data.roomOnline);
     });
 
-    socket.on("room_error", (data: { error: string }) => {
+    socket.on("room_error", (data: { error: string; existingRoomCode?: string }) => {
       // alert(data.error);
       if (data.error.includes("不存在") || data.error.includes("已满")) {
         navigate("/game/poem-snake");
+      }
+      // 如果有 existingRoomCode，说明需要跳转到已有房间
+      if (data.existingRoomCode) {
+        navigate(`/game/poem-snake/room/${data.existingRoomCode}`);
+      }
+    });
+
+    socket.on("room_redirect", (data: { roomCode: string }) => {
+      // 后端强制要求返回已有房间
+      if (data.roomCode) {
+        navigate(`/game/poem-snake/room/${data.roomCode}`);
       }
     });
 
@@ -1028,7 +1039,7 @@ export function PoemSnakeRoomPage() {
           >
             <h3 style={{ marginBottom: 12 }}>确认发起结束投票？</h3>
             <div style={{ color: "#666", fontSize: 14, marginBottom: 16 }}>
-              发起后需要等待其他玩家投票，超过50%同意才能结束房间。
+              发起后需要等待其他玩家投票，超过 50% 同意才能结束房间。
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn" style={{ flex: 1 }} onClick={handleConfirmEnd}>

@@ -107,6 +107,7 @@ interface Room {
   skipVotes?: Map<number, "accept" | "reject">; // 跳过投票记录
   skipTimer?: NodeJS.Timeout; // 跳过投票计时器
   skipInitiator?: number; // 跳过投票发起者UID
+  skipVoteOnlineCount?: number; // 发起跳过投票时的在线人数
   drawPending?: boolean; // 平局请求中的标记
   drawTimer?: NodeJS.Timeout; // 平局请求超时定时器
   submissions: RoomSubmission[]; // 房间内的提交历史
@@ -117,6 +118,7 @@ interface Room {
   endVotes?: Map<number, "accept" | "reject">; // 结束房间投票记录
   endInitiator?: number; // 发起人UID（默认同意）
   endVoteTimer?: NodeJS.Timeout; // 结束房间计时器
+  endVoteOnlineCount?: number; // 发起结束房间投票时的在线人数
   allJoinedUsers: Set<number>; // 所有曾经加入过房间的用户UID（用于结束时通知）
   onlineUsers: Set<number>; // 房间内在线用户UID（包括在公屏的用户）
   autoStart: boolean; // 是否自动开局（匹配房=true，自建房=false）
@@ -419,6 +421,110 @@ export async function submitAnswer(roomCode: string, uid: number, answer: string
   };
 }
 
+// ==================== 投票系统公共函数 ====================
+
+// 计算投票结果（通用函数）
+function calculateVoteResult(
+  room: Room,
+  initiator: number | undefined,
+  requests: Set<number> | undefined,
+  votes: Map<number, "accept" | "reject"> | undefined,
+  totalPlayers: number
+): {
+  accept: number;
+  reject: number;
+  otherAcceptCount: number;
+  otherRejectCount: number;
+  timeoutCount: number;
+  voteStatus: Array<{ uid: number; username: string; status: "accept" | "reject" | "timeout" }>;
+} {
+  if (!initiator) {
+    return {
+      accept: 0,
+      reject: 0,
+      otherAcceptCount: 0,
+      otherRejectCount: 0,
+      timeoutCount: 0,
+      voteStatus: [],
+    };
+  }
+
+  const otherPlayers = room.players.filter(p => p.uid !== initiator);
+  const totalVoted = votes?.size || 0;
+
+  // 计算其他玩家（不包括发起者）的投票数
+  // 如果 votes 中包含发起者，需要减去；如果不包含，说明发起者没有在 votes 中记录
+  const hasInitiatorInVotes = votes?.has(initiator) || false;
+  const otherVotedCount = hasInitiatorInVotes ? totalVoted - 1 : totalVoted;
+
+  // 计算其他玩家（不包括发起者）的同意数
+  let otherAcceptCount = 0;
+  if (requests && requests.size > 0) {
+    // 从 requests 中排除发起者，计算其他玩家的同意数
+    otherAcceptCount = Array.from(requests).filter(uid => uid !== initiator).length;
+  }
+  // accept = 发起者的同意票(1) + 其他玩家的同意数
+  // 发起者始终算作 1 票同意，无论 requests 中是否包含发起者
+  const accept = 1 + otherAcceptCount;
+
+  // 计算其他玩家的拒绝数（不包括发起者）
+  const otherRejectCount = otherVotedCount - otherAcceptCount;
+  // 计算未投票的其他玩家数（超时算作拒绝）
+  const timeoutCount = otherPlayers.length - otherVotedCount;
+  const reject = otherRejectCount + timeoutCount;
+
+  // 构建投票状态列表
+  const voteStatus: Array<{ uid: number; username: string; status: "accept" | "reject" | "timeout" }> = [];
+  for (const player of otherPlayers) {
+    const vote = votes?.get(player.uid);
+    if (vote === "accept") {
+      voteStatus.push({ uid: player.uid, username: player.username, status: "accept" });
+    } else if (vote === "reject") {
+      voteStatus.push({ uid: player.uid, username: player.username, status: "reject" });
+    } else {
+      voteStatus.push({ uid: player.uid, username: player.username, status: "timeout" });
+    }
+  }
+
+  return {
+    accept,
+    reject,
+    otherAcceptCount,
+    otherRejectCount,
+    timeoutCount,
+    voteStatus,
+  };
+}
+
+// 清空跳过投票
+function clearSkipVote(room: Room) {
+  // 注意：room.skipTimer 已不再使用，超时计时器由 socket 代码管理
+  // if (room.skipTimer) {
+  //   clearTimeout(room.skipTimer);
+  //   room.skipTimer = undefined;
+  // }
+  if (room.skipRequests) room.skipRequests.clear();
+  if (room.skipVotes) room.skipVotes.clear();
+  delete (room as any).skipRequests;
+  delete (room as any).skipVotes;
+  room.skipInitiator = undefined;
+  room.skipVoteOnlineCount = undefined;
+}
+
+// 清空结束房间投票
+function clearEndVote(room: Room) {
+  // 注意：room.endVoteTimer 已不再使用，超时计时器由 socket 代码管理
+  // if (room.endVoteTimer) {
+  //   clearTimeout(room.endVoteTimer);
+  //   room.endVoteTimer = undefined;
+  // }
+  if (room.endRequests) room.endRequests.clear();
+  if (room.endVotes) room.endVotes.clear();
+  room.endInitiator = undefined;
+  room.endVoteOnlineCount = undefined;
+  room.lastActivity = Date.now();
+}
+
 // 请求跳过
 function applySkip(room: Room): { skipChar: boolean; finished: boolean } {
   const poem = room.poems[room.currentRound - 1];
@@ -477,12 +583,14 @@ export function requestSkip(roomCode: string, uid: number): {
     room.skipVotes.set(uid, "accept");
     room.skipRequests.add(uid);
     room.lastActivity = Date.now();
-    
-    const needed = Math.floor(room.players.length / 2) + 1;
+
+    // 使用发起投票时记录的在线人数，如果没有则使用当前在线人数或玩家数
+    const voteOnlineCount = room.skipVoteOnlineCount ?? (room.onlineUsers?.size || room.players.length);
+    const needed = Math.floor(voteOnlineCount / 2) + 1;
     const accept = room.skipRequests.size;
     const reject = room.skipVotes.size - accept;
     const current = accept;
-    
+
     // 检查是否所有人都已投票（除了发起者）
     const initiator = room.skipInitiator;
     const otherPlayers = room.players.filter(p => p.uid !== initiator);
@@ -492,7 +600,7 @@ export function requestSkip(roomCode: string, uid: number): {
       const pass = accept >= needed;
       return resolveSkipVote(roomCode, pass);
     }
-    
+
     return { success: true, state: "pending", accept, reject, needed, current };
   }
 
@@ -506,17 +614,18 @@ export function requestSkip(roomCode: string, uid: number): {
   if (!room.skipVotes) room.skipVotes = new Map<number, "accept" | "reject">();
   if (!room.skipRequests) room.skipRequests = new Set<number>();
   room.skipInitiator = uid; // 记录发起者
+  // 记录发起投票时的在线人数（基于 onlineUsers，如果没有则使用 players.length）
+  room.skipVoteOnlineCount = room.onlineUsers?.size || room.players.length;
   // 发起者自动算作一个同意票
   room.skipVotes.set(uid, "accept");
   room.skipRequests.add(uid);
   room.lastActivity = Date.now();
 
-  // 启动10秒计时
-  room.skipTimer = setTimeout(() => {
-    resolveSkipVote(roomCode);
-  }, SKIP_VOTE_WINDOW);
+  // 注意：超时计时器由 socket 代码管理，这里不再设置 room.skipTimer
+  // room.skipTimer 已被 socket 代码中的 skipVoteTimers 替代
+  // 这样可以避免定时器冲突
 
-  const needed = Math.floor(room.players.length / 2) + 1;
+  const needed = Math.floor(room.skipVoteOnlineCount / 2) + 1;
   return { success: true, state: "pending", needed, current: 1, accept: 1, reject: 0, initiator: uid };
 }
 
@@ -536,61 +645,45 @@ export function resolveSkipVote(
 } {
   const room = rooms.get(roomCode);
   if (!room || room.status !== "playing") {
-    return { success: false, state: "failed" };
-  }
-
-  const needed = Math.floor(room.players.length / 2) + 1;
-  const accept = room.skipRequests?.size || 0;
-  const totalVoted = room.skipVotes?.size || 0;
-  // 计算其他玩家（不包括发起者）的投票数
-  const otherVotedCount = totalVoted > 0 ? totalVoted - 1 : 0; // 减去发起者的投票
-  // 计算其他玩家的同意数（不包括发起者）
-  const otherAcceptCount = accept > 0 ? accept - 1 : 0; // 减去发起者的同意票
-  // 计算其他玩家的拒绝数（不包括发起者）
-  const otherRejectCount = otherVotedCount - otherAcceptCount;
-  // 计算未投票的其他玩家数（超时算作拒绝）
-  const initiator = room.skipInitiator;
-  const otherPlayers = initiator ? room.players.filter(p => p.uid !== initiator) : room.players;
-  const timeoutCount = otherPlayers.length - otherVotedCount;
-  const reject = otherRejectCount + timeoutCount; // 拒绝 = 其他玩家明确拒绝 + 超时拒绝
-  const current = accept;
-
-  // 构建投票状态列表
-  const voteStatus: Array<{ uid: number; username: string; status: "accept" | "reject" | "timeout" }> = [];
-  for (const player of otherPlayers) {
-    const vote = room.skipVotes?.get(player.uid);
-    if (vote === "accept") {
-      voteStatus.push({ uid: player.uid, username: player.username, status: "accept" });
-    } else if (vote === "reject") {
-      voteStatus.push({ uid: player.uid, username: player.username, status: "reject" });
-    } else {
-      voteStatus.push({ uid: player.uid, username: player.username, status: "timeout" });
+    // 即使房间状态不对，也要清空投票状态
+    if (room) {
+      // 使用发起投票时记录的在线人数，如果没有则使用当前在线人数或玩家数
+      const voteOnlineCount = room.skipVoteOnlineCount ?? (room.onlineUsers?.size || room.players.length);
+      const needed = Math.floor(voteOnlineCount / 2) + 1;
+      clearSkipVote(room);
+      return { success: false, state: "failed", needed, accept: 0, reject: 0 };
     }
+    return { success: false, state: "failed", needed: 0, accept: 0, reject: 0 };
   }
 
-  if (room.skipTimer) {
-    clearTimeout(room.skipTimer);
-    room.skipTimer = undefined;
+  // 使用发起投票时记录的在线人数，如果没有则使用当前在线人数或玩家数
+  const voteOnlineCount = room.skipVoteOnlineCount ?? (room.onlineUsers?.size || room.players.length);
+  const needed = Math.floor(voteOnlineCount / 2) + 1;
+  const initiator = room.skipInitiator;
+
+  if (!initiator) {
+    // 如果没有 initiator，说明投票状态已经被清空或从未初始化
+    // 这种情况下，我们无法计算投票结果，返回失败
+    clearSkipVote(room);
+    // 但是，如果房间有玩家，至少应该显示 needed 值
+    return { success: false, state: "failed", needed, accept: 0, reject: 0 };
   }
+
+  // 使用公共函数计算投票结果
+  // 注意：即使 skipRequests 和 skipVotes 为空，发起者也算作 1 票同意
+  // 使用发起投票时的在线人数作为总数
+  const result = calculateVoteResult(room, initiator, room.skipRequests, room.skipVotes, voteOnlineCount);
+  const { accept, reject, voteStatus } = result;
+
+  // 清空投票状态（必须在计算完成后清空）
+  clearSkipVote(room);
 
   if (forceApply || accept >= needed) {
-    // 成功，执行跳过
-    if (room.skipRequests) room.skipRequests.clear();
-    if (room.skipVotes) room.skipVotes.clear();
-    delete (room as any).skipRequests;
-    delete (room as any).skipVotes;
-    room.skipInitiator = undefined;
     const res = applySkip(room);
-    return { success: true, state: "applied", skipChar: res.skipChar, finished: res.finished, needed, current, accept, reject, voteStatus };
+    return { success: true, state: "applied", skipChar: res.skipChar, finished: res.finished, needed, current: accept, accept, reject, voteStatus };
   }
 
-  // 失败，清空投票
-  if (room.skipRequests) room.skipRequests.clear();
-  if (room.skipVotes) room.skipVotes.clear();
-  delete (room as any).skipRequests;
-  delete (room as any).skipVotes;
-  room.skipInitiator = undefined;
-  return { success: true, state: "failed", needed, current, accept, reject, voteStatus };
+  return { success: true, state: "failed", needed, current: accept, accept, reject, voteStatus };
 }
 
 // 请求结束房间（投票 >50%）
@@ -654,23 +747,27 @@ export function requestEnd(
   if (!room.endRequests) room.endRequests = new Set<number>();
   if (!room.endVotes) room.endVotes = new Map<number, "accept" | "reject">();
   room.endInitiator = uid;
+  // 记录发起投票时的在线人数（基于 onlineUsers，如果没有则使用 players.length）
+  room.endVoteOnlineCount = room.onlineUsers?.size || room.players.length;
   // 发起者自动算作一个同意票
   room.endVotes.set(uid, "accept");
   room.endRequests.add(uid);
   room.lastActivity = Date.now();
 
-  // 启动10秒计时，超时按未表决=拒绝
-  room.endVoteTimer = setTimeout(() => {
-    resolveEndVote(roomCode);
-  }, SKIP_VOTE_WINDOW);
+  // 注意：超时计时器由 socket 代码管理，这里不再设置 room.endVoteTimer
+  // room.endVoteTimer 已被 socket 代码中的 endVoteTimers 替代
+  // 这样可以避免定时器冲突
 
-  const total = room.startPlayerCount || room.players.length;
-  const needed = Math.floor(total / 2) + 1;
+  const needed = Math.floor(room.endVoteOnlineCount / 2) + 1;
   return { success: true, state: "pending", needed, current: 1, accept: 1, reject: 0, initiator: uid };
 }
 
-// 拒绝结束房间
-export function rejectEnd(roomCode: string, uid: number): {
+// 通用的投票处理函数（用于结束房间投票）
+function handleEndVote(
+  roomCode: string,
+  uid: number,
+  voteType: "accept" | "reject"
+): {
   success: boolean;
   state: "pending" | "applied" | "failed";
   needed: number;
@@ -688,102 +785,52 @@ export function rejectEnd(roomCode: string, uid: number): {
     return { success: false, state: "failed", needed: 0, current: 0, accept: 0, reject: 0, error: "你不是该房间的玩家" };
   }
 
-  // 检查是否有投票在进行中
-  if (room.endInitiator === undefined) {
+  const initiator = room.endInitiator;
+  if (!initiator) {
     return { success: false, state: "failed", needed: 0, current: 0, accept: 0, reject: 0, error: "没有进行中的结束房间投票" };
   }
 
   if (!room.endRequests) room.endRequests = new Set<number>();
   if (!room.endVotes) room.endVotes = new Map<number, "accept" | "reject">();
 
-  // 记录投票（拒绝）
-  room.endVotes.set(uid, "reject");
-  room.endRequests.delete(uid);
+  // 记录投票
+  room.endVotes.set(uid, voteType);
+  if (voteType === "accept") {
+    room.endRequests.add(uid);
+  } else {
+    room.endRequests.delete(uid);
+  }
   room.lastActivity = Date.now();
 
-  const total = room.startPlayerCount || room.players.length;
-  const needed = Math.floor(total / 2) + 1;
-  const acceptCount = room.endRequests.size;
-  const rejectCount = room.endVotes.size - acceptCount;
-  const current = acceptCount;
+  // 使用发起投票时记录的在线人数，如果没有则使用当前在线人数或玩家数
+  const voteOnlineCount = room.endVoteOnlineCount ?? (room.onlineUsers?.size || room.players.length);
+  const needed = Math.floor(voteOnlineCount / 2) + 1;
+  const otherPlayers = room.players.filter(p => p.uid !== initiator);
+  const otherVotedCount = Array.from(room.endVotes.keys()).filter(uid => uid !== initiator).length;
+
+  // 使用公共函数计算投票结果（与 resolveEndVote 保持一致）
+  // 使用发起投票时的在线人数作为总数
+  const result = calculateVoteResult(room, initiator, room.endRequests, room.endVotes, voteOnlineCount);
+  const { accept, reject } = result;
 
   // 检查是否所有人都已投票（除了发起者）
-  const initiator = room.endInitiator;
-  const otherPlayers = room.players.filter(p => p.uid !== initiator);
-  // 计算其他玩家中已投票的数量（不包括发起者）
-  const otherVotedCount = Array.from(room.endVotes.keys()).filter(uid => uid !== initiator).length;
   if (otherVotedCount >= otherPlayers.length) {
-    // 所有人（除了发起者）都已投票，检查结果
-    const pass = acceptCount >= needed;
+    const pass = accept >= needed;
     clearEndVote(room);
-    return { success: true, state: pass ? "applied" : "failed", needed, current, accept: acceptCount, reject: rejectCount, decidedAll: true };
+    return { success: true, state: pass ? "applied" : "failed", needed, current: accept, accept, reject, decidedAll: true };
   }
 
-  return { success: true, state: "pending", needed, current, accept: acceptCount, reject: rejectCount };
+  return { success: true, state: "pending", needed, current: accept, accept, reject };
 }
 
 // 同意结束房间
-export function acceptEnd(roomCode: string, uid: number): {
-  success: boolean;
-  state: "pending" | "applied" | "failed";
-  needed: number;
-  current: number;
-  accept: number;
-  reject: number;
-  decidedAll?: boolean;
-  error?: string;
-} {
-  const room = rooms.get(roomCode);
-  if (!room) {
-    return { success: false, state: "failed", needed: 0, current: 0, accept: 0, reject: 0, error: "房间不存在" };
-  }
-  if (!room.players.some((p) => p.uid === uid)) {
-    return { success: false, state: "failed", needed: 0, current: 0, accept: 0, reject: 0, error: "你不是该房间的玩家" };
-  }
-
-  // 检查是否有投票在进行中
-  if (room.endInitiator === undefined) {
-    return { success: false, state: "failed", needed: 0, current: 0, accept: 0, reject: 0, error: "没有进行中的结束房间投票" };
-  }
-
-  if (!room.endRequests) room.endRequests = new Set<number>();
-  if (!room.endVotes) room.endVotes = new Map<number, "accept" | "reject">();
-
-  // 记录投票（同意）
-  room.endVotes.set(uid, "accept");
-  room.endRequests.add(uid);
-  room.lastActivity = Date.now();
-
-  const total = room.startPlayerCount || room.players.length;
-  const needed = Math.floor(total / 2) + 1;
-  const acceptCount = room.endRequests.size;
-  const rejectCount = room.endVotes.size - acceptCount;
-  const current = acceptCount;
-
-  // 检查是否所有人都已投票（除了发起者）
-  const initiator = room.endInitiator;
-  const otherPlayers = room.players.filter(p => p.uid !== initiator);
-  // 计算其他玩家中已投票的数量（不包括发起者）
-  const otherVotedCount = Array.from(room.endVotes.keys()).filter(uid => uid !== initiator).length;
-  if (otherVotedCount >= otherPlayers.length) {
-    // 所有人（除了发起者）都已投票，检查结果
-    const pass = acceptCount >= needed;
-    clearEndVote(room);
-    return { success: true, state: pass ? "applied" : "failed", needed, current, accept: acceptCount, reject: rejectCount, decidedAll: true };
-  }
-
-  return { success: true, state: "pending", needed, current, accept: acceptCount, reject: rejectCount };
+export function acceptEnd(roomCode: string, uid: number) {
+  return handleEndVote(roomCode, uid, "accept");
 }
 
-function clearEndVote(room: Room) {
-  if (room.endVoteTimer) {
-    clearTimeout(room.endVoteTimer);
-    room.endVoteTimer = undefined;
-  }
-  if (room.endRequests) room.endRequests.clear();
-  if (room.endVotes) room.endVotes.clear();
-  room.endInitiator = undefined;
-  room.lastActivity = Date.now();
+// 拒绝结束房间
+export function rejectEnd(roomCode: string, uid: number) {
+  return handleEndVote(roomCode, uid, "reject");
 }
 
 export function resolveEndVote(
@@ -799,49 +846,42 @@ export function resolveEndVote(
   voteStatus?: Array<{ uid: number; username: string; status: "accept" | "reject" | "timeout" }>;
 } {
   const room = rooms.get(roomCode);
-  if (!room) return { success: false, state: "failed" };
+  if (!room) return { success: false, state: "failed", needed: 0, accept: 0, reject: 0 };
 
-  const total = room.startPlayerCount || room.players.length;
-  const needed = Math.floor(total / 2) + 1;
+  // 使用发起投票时记录的在线人数，如果没有则使用当前在线人数或玩家数
+  const voteOnlineCount = room.endVoteOnlineCount ?? (room.onlineUsers?.size || room.players.length);
+  const needed = Math.floor(voteOnlineCount / 2) + 1;
   const initiator = room.endInitiator;
-  const otherPlayers = room.players.filter(p => p.uid !== initiator);
 
-  // 统计投票状态：已投票的从 endVotes 获取，未投票的算作超时拒绝
-  // 注意：endVotes 和 endRequests 都包含了发起者的投票
-  const accept = room.endRequests?.size || 0;
-  const totalVoted = room.endVotes?.size || 0;
-  // 计算其他玩家（不包括发起者）的投票数
-  const otherVotedCount = totalVoted > 0 ? totalVoted - 1 : 0; // 减去发起者的投票
-  const timeoutCount = otherPlayers.length - otherVotedCount;
-  // 计算其他玩家的拒绝数（不包括发起者）
-  const otherAcceptCount = accept > 0 ? accept - 1 : 0; // 减去发起者的同意票
-  const otherRejectCount = otherVotedCount - otherAcceptCount;
-  const reject = otherRejectCount + timeoutCount; // 拒绝 = 其他玩家明确拒绝 + 超时拒绝
-  const current = accept;
-
-  // 构建投票状态列表
-  const voteStatus: Array<{ uid: number; username: string; status: "accept" | "reject" | "timeout" }> = [];
-  for (const player of otherPlayers) {
-    const vote = room.endVotes?.get(player.uid);
-    if (vote === "accept") {
-      voteStatus.push({ uid: player.uid, username: player.username, status: "accept" });
-    } else if (vote === "reject") {
-      voteStatus.push({ uid: player.uid, username: player.username, status: "reject" });
-    } else {
-      voteStatus.push({ uid: player.uid, username: player.username, status: "timeout" });
-    }
+  if (!initiator) {
+    // 如果没有 initiator，说明投票状态已经被清空或从未初始化
+    // 这种情况下，我们无法计算投票结果，返回失败
+    clearEndVote(room);
+    // 但是，如果房间有玩家，至少应该显示 needed 值
+    return { success: false, state: "failed", needed, accept: 0, reject: 0 };
   }
 
+  // 使用公共函数计算投票结果
+  // 注意：即使 endRequests 和 endVotes 为空，发起者也算作 1 票同意
+  // 使用发起投票时的在线人数作为总数
+  const result = calculateVoteResult(room, initiator, room.endRequests, room.endVotes, voteOnlineCount);
+  const { accept, reject, voteStatus } = result;
+
+  // 清空投票状态（必须在计算完成后清空）
   clearEndVote(room);
 
   if (forceApply || accept >= needed) {
-    return { success: true, state: "applied", needed, current, accept, reject, voteStatus };
+    return { success: true, state: "applied", needed, current: accept, accept, reject, voteStatus };
   }
-  return { success: true, state: "failed", needed, current, accept, reject, voteStatus };
+  return { success: true, state: "failed", needed, current: accept, accept, reject, voteStatus };
 }
 
-// 同意跳过
-export function acceptSkip(roomCode: string, uid: number): {
+// 通用的投票处理函数（用于 skip 投票）
+function handleSkipVote(
+  roomCode: string,
+  uid: number,
+  voteType: "accept" | "reject"
+): {
   success: boolean;
   state: "pending" | "applied" | "failed";
   skipChar?: boolean;
@@ -860,99 +900,55 @@ export function acceptSkip(roomCode: string, uid: number): {
     return { success: false, state: "failed", error: "你不是该房间的玩家" };
   }
 
-  // 检查是否有投票在进行中
-  if (room.skipInitiator === undefined) {
+  const initiator = room.skipInitiator;
+  if (!initiator) {
     return { success: false, state: "failed", error: "没有进行中的跳过投票" };
   }
 
-  // 发起者已经在 requestSkip 中自动添加了同意票，不能再投票
-  if (uid === room.skipInitiator) {
+  if (uid === initiator) {
     return { success: false, state: "failed", error: "发起者已自动同意，无需再次投票" };
   }
 
   if (!room.skipVotes) room.skipVotes = new Map<number, "accept" | "reject">();
   if (!room.skipRequests) room.skipRequests = new Set<number>();
 
-  // 记录投票（同意），如果之前投过拒绝，现在改为同意
-  room.skipVotes.set(uid, "accept");
-  room.skipRequests.add(uid);
+  // 记录投票
+  room.skipVotes.set(uid, voteType);
+  if (voteType === "accept") {
+    room.skipRequests.add(uid);
+  } else {
+    room.skipRequests.delete(uid);
+  }
   room.lastActivity = Date.now();
 
-  const needed = Math.floor(room.players.length / 2) + 1;
-  const accept = room.skipRequests.size;
+  // 使用发起投票时记录的在线人数，如果没有则使用当前在线人数或玩家数
+  const voteOnlineCount = room.skipVoteOnlineCount ?? (room.onlineUsers?.size || room.players.length);
+  const needed = Math.floor(voteOnlineCount / 2) + 1;
+  const otherPlayers = room.players.filter(p => p.uid !== initiator);
+  const otherVotedCount = Array.from(room.skipVotes.keys()).filter(uid => uid !== initiator).length;
+
+  // 计算当前投票状态（发起者算作1票同意）
+  const accept = Math.max(1, room.skipRequests.size);
   const reject = room.skipVotes.size - accept;
   const current = accept;
 
   // 检查是否所有人都已投票（除了发起者）
-  const initiator = room.skipInitiator;
-  const otherPlayers = room.players.filter(p => p.uid !== initiator);
-  // 计算其他玩家中已投票的数量（不包括发起者）
-  const otherVotedCount = Array.from(room.skipVotes.keys()).filter(uid => uid !== initiator).length;
   if (otherVotedCount >= otherPlayers.length) {
-    // 所有人（除了发起者）都已投票，检查结果
-    const pass = accept >= needed;
+    const pass = voteType === "accept" && accept >= needed;
     return resolveSkipVote(roomCode, pass);
   }
 
   return { success: true, state: "pending", accept, reject, needed, current };
 }
 
+// 同意跳过
+export function acceptSkip(roomCode: string, uid: number) {
+  return handleSkipVote(roomCode, uid, "accept");
+}
+
 // 拒绝跳过
-export function rejectSkip(
-  roomCode: string,
-  uid: number
-): {
-  success: boolean;
-  state?: "pending" | "applied" | "failed";
-  accept?: number;
-  reject?: number;
-  needed?: number;
-  current?: number;
-  error?: string;
-} {
-  const room = rooms.get(roomCode);
-  if (!room || room.status !== "playing") {
-    return { success: false, error: "房间不存在或游戏未开始" };
-  }
-  if (!room.players.some((p) => p.uid === uid)) {
-    return { success: false, error: "你不是该房间的玩家" };
-  }
-
-  // 检查是否有投票在进行中
-  if (room.skipInitiator === undefined) {
-    return { success: false, error: "没有进行中的跳过投票" };
-  }
-
-  // 发起者已经在 requestSkip 中自动添加了同意票，不能再投票
-  if (uid === room.skipInitiator) {
-    return { success: false, error: "发起者已自动同意，无需再次投票" };
-  }
-
-  if (!room.skipVotes) room.skipVotes = new Map<number, "accept" | "reject">();
-  if (!room.skipRequests) room.skipRequests = new Set<number>();
-
-  // 记录投票（拒绝），如果之前投过同意，现在改为拒绝
-  room.skipVotes.set(uid, "reject");
-  room.skipRequests.delete(uid);
-  room.lastActivity = Date.now();
-
-  const needed = Math.floor(room.players.length / 2) + 1;
-  const accept = room.skipRequests.size;
-  const reject = room.skipVotes.size - accept;
-  const current = accept;
-
-  // 检查是否所有人都已投票（除了发起者）
-  const initiator = room.skipInitiator;
-  const otherPlayers = room.players.filter(p => p.uid !== initiator);
-  // 计算其他玩家中已投票的数量（不包括发起者）
-  const otherVotedCount = Array.from(room.skipVotes.keys()).filter(uid => uid !== initiator).length;
-  if (otherVotedCount >= otherPlayers.length) {
-    // 所有人（除了发起者）都已投票，检查结果
-    const res = resolveSkipVote(roomCode, false);
-    return { success: true, state: res.state, accept: res.accept, reject: res.reject, needed: res.needed, current: res.current };
-  }
-
-  return { success: true, state: "pending", accept, reject, needed, current };
+export function rejectSkip(roomCode: string, uid: number) {
+  return handleSkipVote(roomCode, uid, "reject");
 }
 
 // 进入下一题
