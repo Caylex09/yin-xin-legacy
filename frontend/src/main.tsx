@@ -599,14 +599,14 @@ function PoetryPage() {
             <div style={{ marginBottom: 12 }}>{renderSegments(data.content)}</div>
             <h3>译文</h3>
             {data.translation ? (
-              <p className="muted">{data.translation}</p>
+              <p className="muted pre-line">{data.translation}</p>
             ) : (
               <p className="muted small">暂无译文，快去发工单联系管理员添加吧！</p>
             )}
 
             <h3>赏析</h3>
             {data.appreciation ? (
-              <p className="muted">{data.appreciation}</p>
+              <p className="muted pre-line">{data.appreciation}</p>
             ) : (
               <p className="muted small">暂无赏析，快去发工单联系管理员添加吧！</p>
             )}
