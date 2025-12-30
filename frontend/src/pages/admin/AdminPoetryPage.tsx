@@ -123,10 +123,10 @@ export function AdminPoetryPage() {
               作者 ID
               <input value={form.author} onChange={(e) => setForm((p: any) => ({ ...p, author: e.target.value }))} />
             </label>
-            <label>
+            {/* <label>
               朝代
               <input value={form.dynasty} onChange={(e) => setForm((p: any) => ({ ...p, dynasty: e.target.value }))} />
-            </label>
+            </label> */}
             <label>
               内容（按行分段，行内按标点拆句）
               <textarea
