@@ -28,7 +28,7 @@ async function collectFlaggedPoetry(limit: number, startOffset: number) {
     if (!docs.length) break;
     for (const d of docs) {
       const str = JSON.stringify([d.author, d.dynasty, d.content]); // 标题含括号不计入修复
-      if (str.includes("（") || str.includes("）") || str.includes("")) {
+      if (str.includes("（") || str.includes("）") || str.includes("�") || str.includes("□")) {
         flagged.push(d);
         if (flagged.length >= limit) break;
       }
@@ -56,7 +56,7 @@ async function collectFlaggedPoets(limit: number, startOffset: number) {
     if (!docs.length) break;
     for (const d of docs) {
       const textStr = JSON.stringify([d.name, d.dynasty, d.description, d.content]);
-      const badText = textStr.includes("□") || textStr.includes("");
+      const badText = textStr.includes("□") || textStr.includes("�");
       const badAvatar = !d.avatar || String(d.avatar).includes("yinxin");
       if (badText || badAvatar) {
         flagged.push(d);

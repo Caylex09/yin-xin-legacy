@@ -871,9 +871,16 @@ function ProfilePage() {
   usePageTitle("个人主页");
   const { uid } = useParams();
   const [profile, setProfile] = useState<any>(null);
+  const [self, setSelf] = useState<ProfileWithRole | null>(null);
   const [error, setError] = useState("");
   const [rankInfo, setRankInfo] = useState<{ rank: number; score: number; total: number } | null>(null);
   const [rankError, setRankError] = useState("");
+
+  useEffect(() => {
+    fetchProfile(API_BASE)
+      .then((p) => setSelf(p))
+      .catch(() => setSelf(null));
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -942,11 +949,13 @@ function ProfilePage() {
             {rankInfo ? `第 ${rankInfo.rank} / ${rankInfo.total} 名` : rankError ? `获取失败：${rankError}` : "加载中..."}
           </p>
           <p>注册时间：{formatDate(profile.createdAt)}</p>
-          <div style={{ marginTop: 8 }}>
-            <Link className="btn ghost" to={`/profile/${profile.uid}/edit`}>
-              编辑个人资料
-            </Link>
-          </div>
+          {self && String(self.uid) === String(profile.uid) && (
+            <div style={{ marginTop: 8 }}>
+              <Link className="btn ghost" to={`/profile/${profile.uid}/edit`}>
+                编辑个人资料
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </section>

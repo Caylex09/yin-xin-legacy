@@ -18,7 +18,8 @@ async function checkPoemForMatch(poem: string, targetContent: string, targetPos:
 
   // 检查是否包含高亮字符
   if (targetPos >= targetContent.length) {
-    return { verdict: VERDICT.NOT_FOUND, data: empty };
+    return { verdict: VERDICT.UNKNOWN, data: empty };
+    // return { verdict: VERDICT.NOT_FOUND, data: empty };
   }
 
   const highlightedChar = targetContent[targetPos];

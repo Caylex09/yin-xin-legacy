@@ -1,7 +1,255 @@
 // Poem Snake 游戏专用状态和逻辑
 import { VERDICT, VERDICT_TEXT, getPoem, searchPoem, clearMark } from "../gameApi";
+import axios from "axios";
+import { load } from "cheerio";
+import { getDb } from "../../db";
 
 const PUNCTUATION = ["，", "？", "。", "！", "：", "、", "；"];
+
+const GUSHIWEN_DOMAIN = "https://www.gushiwen.cn";
+const GUSHIWEN_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Cookie": "wsEmail=2176807108%40qq.com; Hm_lvt_9007fab6814e892d3020a64454da5a55=1757680581,1757899938,1758275989,1758505066; HMACCOUNT=C5FB65544F556811; gsw2017user=5351271%7c200A93E8DF3D18ABF087F0A4BC20A069%7c2000%2f1%2f1%7c2000%2f1%2f1; login=flase; wxopenid=defoaltid; gswZhanghao=2176807108%40qq.com; gswEmail=2176807108%40qq.com; Hm_lpvt_9007fab6814e892d3020a64454da5a55=1758506414",
+};
+
+// 判断诗句是否匹配（从 gameApi.ts 复制）
+function judge(poem: string, inp: string): string | null {
+    const OK_ENDING = ["。", "？", "！", "；"];
+    function markToAll(str: string): string {
+        return str.replace(/[，；。！？、：]/g, "[，；。！？、：]?");
+    }
+
+    let pattern = inp.split("").join(".?");
+    pattern = markToAll(pattern);
+    pattern = `(?<=[，；。！？]|^|\\s)${pattern}(?=[，；。！？]|$|\\s)`;
+
+    const regex = new RegExp(pattern);
+    const match = poem.match(regex);
+
+    if (!match || !match[0]) return null;
+
+    let line = match[0];
+    if (!line) return null;
+
+    const matchStartIndex = match.index!;
+    const matchEndIndex = matchStartIndex + line.length;
+
+    if (!OK_ENDING.includes(line[line.length - 1])) {
+        const nextChar = poem[matchEndIndex];
+        if (nextChar && OK_ENDING.includes(nextChar)) {
+            line += nextChar;
+        } else {
+            let searchIndex = matchEndIndex;
+            while (searchIndex < poem.length) {
+                const char = poem[searchIndex];
+                if (OK_ENDING.includes(char)) {
+                    line += poem.slice(matchEndIndex, searchIndex + 1);
+                    break;
+                } else if (char === "，" || char === "、" || char === "：" || char === "；") {
+                    searchIndex++;
+                } else if (/[\u4e00-\u9fa5]/.test(char)) {
+                    searchIndex++;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    return line;
+}
+
+// 更宽松的匹配
+function exjudge(poem: string, inp: string): boolean {
+    const poemClean = clearMark(poem).replace(/\s+/g, "");
+    const inpClean = clearMark(inp).replace(/\s+/g, "");
+    if (!inpClean) return false;
+    return poemClean.includes(inpClean);
+}
+
+// 在古诗文网搜索诗句
+async function searchGushiwen(poem: string): Promise<{ status: number; data: string[] } | null> {
+    const empty = ["", "", ""];
+
+    try {
+        // 先搜索名句
+        const searchUrl = `${GUSHIWEN_DOMAIN}/search.aspx?value=${encodeURIComponent(poem)}&type=mingju&valuej=${encodeURIComponent(poem[0])}`;
+        console.log("[gushiwen] Searching mingju:", searchUrl);
+        const response = await axios.get(searchUrl, {
+            headers: GUSHIWEN_HEADERS,
+            timeout: 5000,
+            responseType: 'text'
+        });
+
+        if (!response.data) {
+            console.log("[gushiwen] No response data, trying findPoem");
+            return await findPoemInGushiwen(poem);
+        }
+
+        const htmlContent = typeof response.data === 'string' ? response.data : String(response.data);
+        console.log("[gushiwen] Response data length:", htmlContent.length);
+        const $ = load(htmlContent);
+        const sonsDiv = $("div.sons").first();
+
+        console.log("[gushiwen] sonsDiv length:", sonsDiv.length);
+
+        if (sonsDiv.length === 0) {
+            // 如果名句搜索没有结果，尝试搜索整首诗
+            console.log("[gushiwen] No sons div found, trying findPoem");
+            return await findPoemInGushiwen(poem);
+        }
+
+        const link = sonsDiv.find("a").first();
+        if (link.length === 0) {
+            console.log("[gushiwen] No link found, trying findPoem");
+            return await findPoemInGushiwen(poem);
+        }
+
+        const linkText = link.text();
+        console.log("[gushiwen] Link text:", linkText);
+        const matched = judge(linkText, poem);
+        if (!matched) {
+            console.log("[gushiwen] No match found, trying findPoem");
+            return await findPoemInGushiwen(poem);
+        }
+
+        const allLinks = sonsDiv.find("a");
+        if (allLinks.length < 2) {
+            console.log("[gushiwen] Less than 2 links, trying findPoem");
+            return await findPoemInGushiwen(poem);
+        }
+
+        const authorLinkText = allLinks.eq(1).text();
+        console.log("[gushiwen] Author link text:", authorLinkText);
+        const matchResult = authorLinkText.match(/^(.*)《(.*)》$/);
+        if (!matchResult) {
+            console.log("[gushiwen] Author pattern not matched, trying findPoem");
+            return await findPoemInGushiwen(poem);
+        }
+
+        const author = matchResult[1];
+        const title = matchResult[2];
+        console.log("[gushiwen] Found:", { title, author, matched });
+
+        return { status: 0, data: [title, author, matched] };
+    } catch (error) {
+        console.error("[gushiwen] searchGushiwen error:", error);
+        if (axios.isAxiosError(error)) {
+            if (error.code === "ECONNABORTED") {
+                console.log("[gushiwen] Timeout");
+                return { status: 7, data: empty };
+            }
+            console.error("[gushiwen] Axios error:", error.message, error.code, error.response?.status);
+            // 网络错误或其他错误，返回搜索失败而不是 null
+            return { status: 1, data: empty };
+        }
+        console.error("[gushiwen] Unknown error:", error);
+        return { status: 1, data: empty };
+    }
+}
+
+// 在古诗文网搜索整首诗
+async function findPoemInGushiwen(poem: string): Promise<{ status: number; data: string[] } | null> {
+    const empty = ["", "", ""];
+
+    try {
+        const url = `${GUSHIWEN_DOMAIN}/search.aspx?value=${encodeURIComponent(poem)}&valuej=${encodeURIComponent(poem[0])}`;
+        console.log("[gushiwen] Searching poem:", url);
+        const response = await axios.get(url, {
+            headers: GUSHIWEN_HEADERS,
+            timeout: 5000,
+            responseType: 'text'
+        });
+
+        if (!response.data) {
+            console.log("[gushiwen] No response data in findPoem");
+            return { status: 1, data: empty };
+        }
+
+        const htmlContent = typeof response.data === 'string' ? response.data : String(response.data);
+        console.log("[gushiwen] Response data length in findPoem:", htmlContent.length);
+        const $ = load(htmlContent);
+        const sonsDiv = $("div.sons").first();
+
+        console.log("[gushiwen] findPoem sonsDiv length:", sonsDiv.length);
+
+        if (sonsDiv.length === 0) {
+            console.log("[gushiwen] No sons div in findPoem");
+            return { status: 1, data: empty };
+        }
+
+        const contsonDiv = sonsDiv.find("div.contson");
+        console.log("[gushiwen] contsonDiv length:", contsonDiv.length);
+        if (contsonDiv.length === 0) {
+            console.log("[gushiwen] No contson div");
+            return { status: 1, data: empty };
+        }
+
+        let text = contsonDiv.text();
+        console.log("[gushiwen] Original text:", text.substring(0, 100));
+
+        // 移除括号内容
+        let result = "";
+        let inBrackets = false;
+        for (const c of text) {
+            if (c === "(" || c === "（") {
+                inBrackets = true;
+            } else if (c === ")" || c === "）") {
+                inBrackets = false;
+            } else if (!inBrackets) {
+                result += c;
+            }
+        }
+        text = result;
+        console.log("[gushiwen] Text after removing brackets:", text.substring(0, 100));
+
+        const matched = judge(text, poem);
+        console.log("[gushiwen] Judge result:", matched);
+        if (!matched) {
+            const exjudgeResult = exjudge(text, poem);
+            console.log("[gushiwen] Exjudge result:", exjudgeResult);
+            if (!exjudgeResult) {
+                return { status: 1, data: empty };
+            }
+            return { status: 2, data: empty };
+        }
+
+        const titleP = sonsDiv.find("p").first();
+        const title = titleP.text().replace(/[\n\r ]/g, "");
+        console.log("[gushiwen] Title:", title);
+
+        const sourceP = sonsDiv.find("p.source");
+        const author = sourceP.text().replace(/[\n\r ]/g, "");
+        console.log("[gushiwen] Author:", author);
+
+        return { status: 0, data: [title, author, matched] };
+    } catch (error) {
+        console.error("[gushiwen] findPoemInGushiwen error:", error);
+        if (axios.isAxiosError(error)) {
+            if (error.code === "ECONNABORTED") {
+                console.log("[gushiwen] Timeout in findPoem");
+                return { status: 7, data: empty };
+            }
+            console.error("[gushiwen] Axios error in findPoem:", error.message, error.code, error.response?.status);
+            // 网络错误或其他错误，返回搜索失败而不是 null
+            return { status: 1, data: empty };
+        }
+        console.error("[gushiwen] Unknown error in findPoem:", error);
+        return { status: 1, data: empty };
+    }
+}
+
+// 创建工单
+async function createTicket(title: string, content: string) {
+    try {
+        const db = getDb();
+        const now = new Date().toISOString();
+        db.prepare("INSERT INTO tickets (title, content, created_by, created_at, updated_at, status) VALUES (?, ?, ?, ?, ?, 'open')")
+            .run(title, content, 1, now, now);
+    } catch (error) {
+        console.error("[poem-snake] Failed to create ticket:", error);
+    }
+}
 
 // 游戏状态管理
 interface PoemData {
@@ -115,6 +363,7 @@ export async function checkPoem(poem: string): Promise<{ verdict: number; data: 
             ...debugBase,
             reason: "pos_out_of_range",
         });
+        return { verdict: VERDICT.UNKNOWN, data: empty };
         return { verdict: VERDICT.NOT_FOUND, data: empty };
     }
 
@@ -148,11 +397,36 @@ export async function checkPoem(poem: string): Promise<{ verdict: number; data: 
     const searchResult = await searchPoem(poem);
 
     if (!searchResult) {
-        console.log("[poem-snake] NOT_FOUND", {
+        console.log("[poem-snake] NOT_FOUND, trying gushiwen.cn", {
             ...debugBase,
             reason: "search_no_results",
         });
-        return { verdict: VERDICT.NOT_FOUND, data: empty };
+
+        // 尝试在古诗文网搜索
+        const gushiwenResult = await searchGushiwen(poem);
+        console.log("[poem-snake] GUSHIWEN_RESULT", {
+            ...debugBase,
+            gushiwenResult: gushiwenResult,
+        });
+        console.log(gushiwenResult)
+        if (gushiwenResult && gushiwenResult.status === 0) {
+            // 古诗文网搜索成功，创建工单并返回正确结果
+            const ticketContent = `checkPoem 调用了 "${poem}"，在古诗文网搜到了。\n\n结果：\n标题：${gushiwenResult.data[0]}\n作者：${gushiwenResult.data[1]}\n匹配句：${gushiwenResult.data[2]}`;
+            await createTicket("修复诗文", ticketContent);
+
+            console.log("[poem-snake] GUSHIWEN_FOUND", {
+                ...debugBase,
+                gushiwenResult: gushiwenResult.data,
+            });
+
+            return {
+                verdict: VERDICT.CORRECT,
+                data: gushiwenResult.data,
+            };
+        } else {
+            // 古诗文网也搜不到或超时，返回 NOT_FOUND
+            return { verdict: VERDICT.NOT_FOUND, data: empty };
+        }
     }
 
     // 检查是否是完整句子：如果用户输入的诗句是匹配到的完整句子的前缀（后面还有内容），则判定为半句

@@ -20,6 +20,7 @@ export const VERDICT = {
   NO_HIGHLIGHTED_CHAR: 5,
   ORIGINAL_POEM: 6,
   TIMEOUT: 7,
+  UNKNOWN: 8,
 };
 
 export const VERDICT_TEXT = [
@@ -29,8 +30,9 @@ export const VERDICT_TEXT = [
   "末尾需要标点符号。",
   "长度不符合要求。",
   "没有包含高亮字。",
-  "阁下发原诗作甚？",
+  "与原诗一致。",
   "古诗文网请求超时！",
+  "未知错误",
 ];
 
 // 清除标点符号
