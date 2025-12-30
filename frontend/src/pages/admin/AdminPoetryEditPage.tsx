@@ -114,10 +114,10 @@ export function AdminPoetryEditPage() {
             作者 ID
             <input name="author" defaultValue={data.author || ""} />
           </label>
-          <label>
+          {/* <label>
             朝代
             <input name="dynasty" defaultValue={data.dynasty || ""} />
-          </label>
+          </label> */}
           <label>
             内容（按行分段，行内按标点拆句）
             <textarea
