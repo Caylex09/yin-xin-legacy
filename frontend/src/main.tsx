@@ -1198,7 +1198,7 @@ function ProfileEditPage() {
       </div>
       <div className="result-list">
         <h3>修改头像</h3>
-        <p>本站头像与 <Link to="https://cn.gravatar.com/">Gravatar</Link> 同步，请前往 Gravatar 使用绑定邮箱登录后修改头像。</p>
+        <p>本站头像与 <Link to="https://cn.gravatar.com/" className="link-blue">Gravatar</Link> 同步，请前往 Gravatar 使用绑定邮箱登录后修改头像。</p>
       </div>
       <div className="result-list">
         <h3>切换绑定邮箱（双重验证）</h3>
