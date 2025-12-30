@@ -460,9 +460,40 @@ export function requestSkip(roomCode: string, uid: number): {
     return { success: false, state: "failed", skipChar: false, error: "你不是该房间的玩家" };
   }
 
-  // 如果已有投票在进行中，不允许重复发起
+  // 如果已有投票在进行中，且当前用户还没有投票，自动将其添加为同意票
   if (room.skipInitiator !== undefined) {
-    return { success: false, state: "failed", error: "已有跳过投票在进行中" };
+    // 检查当前用户是否已经投票
+    const hasVoted = room.skipVotes?.has(uid) || false;
+    if (hasVoted) {
+      return { success: false, state: "failed", error: "你已投票，无需重复操作" };
+    }
+    // 如果当前用户是发起者，不应该再次投票
+    if (uid === room.skipInitiator) {
+      return { success: false, state: "failed", error: "发起者已自动同意，无需再次投票" };
+    }
+    // 自动将当前用户添加为同意票（相当于调用 acceptSkip）
+    if (!room.skipVotes) room.skipVotes = new Map<number, "accept" | "reject">();
+    if (!room.skipRequests) room.skipRequests = new Set<number>();
+    room.skipVotes.set(uid, "accept");
+    room.skipRequests.add(uid);
+    room.lastActivity = Date.now();
+    
+    const needed = Math.floor(room.players.length / 2) + 1;
+    const accept = room.skipRequests.size;
+    const reject = room.skipVotes.size - accept;
+    const current = accept;
+    
+    // 检查是否所有人都已投票（除了发起者）
+    const initiator = room.skipInitiator;
+    const otherPlayers = room.players.filter(p => p.uid !== initiator);
+    const otherVotedCount = Array.from(room.skipVotes.keys()).filter(uid => uid !== initiator).length;
+    if (otherVotedCount >= otherPlayers.length) {
+      // 所有人（除了发起者）都已投票，检查结果
+      const pass = accept >= needed;
+      return resolveSkipVote(roomCode, pass);
+    }
+    
+    return { success: true, state: "pending", accept, reject, needed, current };
   }
 
   // 只有一个人，直接跳过
