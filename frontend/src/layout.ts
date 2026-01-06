@@ -30,9 +30,12 @@ export function renderLayout(mainContent: string) {
       ${mainContent}
     </main>
     <footer class="footer">
-      © 2025 吟心 |
+      © 2026 吟心 |
       <a href="http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=1LQ1dTeqha0TSoSNiYSs16xhxgEIAJJ4&authKey=VzCbL0E5wtE8rE6%2BKa6GR0gCdxoOO0fxm1P3Sy8BdW5PcEu4LZ%2FLWPUQ0p5hH4Ta&noverify=0&group_code=211902065" target="_blank" rel="noreferrer">
         QQ 群 211902065
+      </a>
+      <a href="https://afdian.com/a/cyx2009" target="_blank" rel="noreferrer">
+        爱发电赞助通道
       </a>
     </footer>
   </div>
