@@ -49,20 +49,20 @@ export async function loginUser(username: string, password: string) {
     .prepare("SELECT * FROM users WHERE username = ? OR email = ?")
     .get(username, username) as
     | {
-        uid: number;
-        username: string;
-        email: string;
-        password_hash: string;
-        role: number;
-        is_announcement_admin: number;
-        is_super_admin: number;
-        is_wiki_admin: number;
-        is_game_admin: number;
-        token_version: number;
-        score: number;
-        avatar: string;
-        created_at: string;
-      }
+      uid: number;
+      username: string;
+      email: string;
+      password_hash: string;
+      role: number;
+      is_announcement_admin: number;
+      is_super_admin: number;
+      is_wiki_admin: number;
+      is_game_admin: number;
+      token_version: number;
+      score: number;
+      avatar: string;
+      created_at: string;
+    }
     | undefined;
   if (!user) throw new Error("用户不存在");
   if (user.role === -1) throw new Error("账号已封禁");
@@ -123,20 +123,20 @@ export function getUserProfile(uid: number) {
     )
     .get(uid) as
     | {
-        uid: number;
-        username: string;
-        email: string;
-        role: number;
-        is_announcement_admin: number;
-        is_super_admin: number;
-        is_wiki_admin: number;
-        is_game_admin: number;
-        token_version: number;
-        score: number;
-        avatar: string;
-        username_changed_at: string;
-        created_at: string;
-      }
+      uid: number;
+      username: string;
+      email: string;
+      role: number;
+      is_announcement_admin: number;
+      is_super_admin: number;
+      is_wiki_admin: number;
+      is_game_admin: number;
+      token_version: number;
+      score: number;
+      avatar: string;
+      username_changed_at: string;
+      created_at: string;
+    }
     | undefined;
   if (!user) throw new Error("用户不存在");
   return {
@@ -164,18 +164,18 @@ export function getUserPublic(uid: number) {
     )
     .get(uid) as
     | {
-        uid: number;
-        username: string;
-        role: number;
-        is_announcement_admin: number;
-        is_super_admin: number;
-        is_wiki_admin: number;
-        is_game_admin: number;
-        token_version: number;
-        score: number;
-        avatar: string;
-        created_at: string;
-      }
+      uid: number;
+      username: string;
+      role: number;
+      is_announcement_admin: number;
+      is_super_admin: number;
+      is_wiki_admin: number;
+      is_game_admin: number;
+      token_version: number;
+      score: number;
+      avatar: string;
+      created_at: string;
+    }
     | undefined;
   if (!user) throw new Error("用户不存在");
   return {
@@ -196,7 +196,8 @@ export function getUserPublic(uid: number) {
 function gravatar(email: string) {
   const normalized = (email || "").trim().toLowerCase();
   const hash = crypto.createHash("md5").update(normalized).digest("hex");
-  return `https://cn.gravatar.com/avatar/${hash}?d=identicon&s=256`;
+  // return `https://cn.gravatar.com/avatar/${hash}?d=identicon&s=256`;
+  return `https://cravatar.com/avatar/${hash}?d=identicon&s=256`;
 }
 
 export function getUserPublicByUid(uid: number) {
