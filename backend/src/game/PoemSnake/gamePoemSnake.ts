@@ -4,7 +4,7 @@ import axios from "axios";
 import { load } from "cheerio";
 import { getDb } from "../../db";
 
-const PUNCTUATION = ["。", "、", "；", "：", "“", "”", "‘", "’", "《", "》", "〈", "〉", "（", "）", "【", "】", "〔", "〕", "『", "』", "「", "」", "﹁", "﹂", "﹃", "﹄", "﹇", "﹈", "—", "…", "？", "！"];
+const PUNCTUATION = ["，", "。", "、", "；", "：", "“", "”", "‘", "’", "《", "》", "〈", "〉", "（", "）", "【", "】", "〔", "〕", "『", "』", "「", "」", "﹁", "﹂", "﹃", "﹄", "﹇", "﹈", "—", "…", "？", "！"];
 
 const GUSHIWEN_DOMAIN = "https://www.gushiwen.cn";
 const GUSHIWEN_HEADERS = {
