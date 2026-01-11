@@ -178,6 +178,7 @@ export function setupPoemSnakeSocket(
         poemTitle: poem.origin,
         round: 1,
         isActive: true,
+        pos: poem.pos,
       },
     });
 
@@ -279,6 +280,7 @@ export function setupPoemSnakeSocket(
           poemTitle: poem.origin,
           round: 1,
           isActive: true,
+          pos: poem.pos,
         },
       });
 

@@ -14,6 +14,7 @@ interface GameState {
   timeLeft: number;
   round: number;
   isActive: boolean;
+  pos?: number;
 }
 
 interface Submission {
@@ -641,9 +642,9 @@ export function PoemSnakePage() {
   const renderHighlightedPoem = () => {
     if (!gameState.currentPoem || !gameState.highlightedChar) return null;
 
-    // 找到高亮字符的位置
-    const charIndex = gameState.currentPoem.indexOf(gameState.highlightedChar);
-    if (charIndex === -1) return null;
+    // 使用 pos 字段来确定高亮字符的位置（如果可用），否则回退到 indexOf
+    const charIndex = gameState.pos !== undefined ? gameState.pos : gameState.currentPoem.indexOf(gameState.highlightedChar);
+    if (charIndex === -1 || charIndex >= gameState.currentPoem.length) return null;
 
     const beforeChar = gameState.currentPoem.substring(0, charIndex).trim();
     const highlightedChar = gameState.currentPoem[charIndex];
