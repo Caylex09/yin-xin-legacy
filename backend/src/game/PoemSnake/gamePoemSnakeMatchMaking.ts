@@ -12,7 +12,7 @@ async function checkPoemForMatch(poem: string, targetContent: string, targetPos:
 
   // 检查长度
   const cleanPoem = clearMark(poem);
-  if (cleanPoem.length < 7 || cleanPoem.length >= 50) {
+  if (cleanPoem.length < 5 || cleanPoem.length >= 50) {
     return { verdict: VERDICT.LENGTH_INVALID, data: empty };
   }
 

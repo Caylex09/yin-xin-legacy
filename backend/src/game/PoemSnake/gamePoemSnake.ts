@@ -348,7 +348,7 @@ export async function checkPoem(poem: string): Promise<{ verdict: number; data: 
 
     // 检查长度
     const cleanPoem = clearMark(poem);
-    if (cleanPoem.length < 7 || cleanPoem.length >= 50) {
+    if (cleanPoem.length < 5 || cleanPoem.length >= 50) {
         console.log("[poem-snake] LENGTH_INVALID", {
             ...debugBase,
             reason: "length_invalid",
