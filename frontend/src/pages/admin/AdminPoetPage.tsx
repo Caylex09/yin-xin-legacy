@@ -16,7 +16,7 @@ export function AdminPoetPage() {
     dynasty: "",
     description: "",
     content: "",
-    avatar: "yinxin.png",
+    avatar: "avatar/yinxin.png",
   });
   const [profile, setProfile] = useState<ProfileWithRole | null>(null);
 
@@ -57,7 +57,7 @@ export function AdminPoetPage() {
         dynasty: form.dynasty.trim(),
         description: form.description.trim(),
         content: form.content.trim(),
-        avatar: form.avatar.trim() || "yinxin.png",
+        avatar: form.avatar.trim() || "avatar/yinxin.png",
       };
       const resp = await fetch(`${API_BASE}/wiki/poets`, {
         method: "POST",
@@ -66,7 +66,7 @@ export function AdminPoetPage() {
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-      setForm({ id: "", name: "", dynasty: "", description: "", content: "", avatar: "yinxin.png" });
+      setForm({ id: "", name: "", dynasty: "", description: "", content: "", avatar: "avatar/yinxin.png" });
       setQ("");
       load();
     } catch (e) {
