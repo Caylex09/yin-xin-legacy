@@ -148,16 +148,15 @@ export function judge(poem: string, inp: string): string | null {
   const nextChar = poem[endRawIndex + 1];
 
   // 情况 A: 后面没有字符了 (字符串结尾) -> 允许
-  // 例如诗句本身就是数据库字段的结尾
+  // 返回纯汉字
   if (nextChar === undefined) {
     return poem.slice(startRawIndex, endRawIndex + 1);
   }
 
   // 情况 B: 后面有字符，必须在 SENTENCE_ENDINGS 白名单里
-  // 只要 nextChar 不是 "。" "？" "！" "；" 之一，全部杀掉！
-  // 这会杀掉：逗号（，）、顿号（、）、空格（ ）、换行（\n）、汉字
   if (SENTENCE_ENDINGS.has(nextChar)) {
-    return poem.slice(startRawIndex, endRawIndex + 1);
+    // 【修复点】：把 nextChar (这个句号/问号) 加到返回结果里
+    return poem.slice(startRawIndex, endRawIndex + 1) + nextChar;
   }
 
   // 情况 C: 其他所有情况 -> 拒绝
