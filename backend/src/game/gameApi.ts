@@ -1,8 +1,17 @@
 import axios from "axios";
 import { MeiliSearch } from "meilisearch";
 
-const OK_ENDING = ["。", "？", "！", "；"];
+export const OK_ENDING = ["。", "？", "！", "；"];
+export const PUNCTUATION = ["，", "。", "、", "；", "：", "“", "”", "‘", "’", "《", "》", "〈", "〉", "（", "）", "【", "】", "〔", "〕", "『", "』", "「", "」", "﹁", "﹂", "﹃", "﹄", "﹇", "﹈", "—", "…", "？", "！"];
 
+const PUNCTUATION_SET = new Set(PUNCTUATION);
+const SENTENCE_ENDINGS = new Set(OK_ENDING)
+
+// 辅助：判断是否为标点或空白字符
+function isPunctuation(char: string | undefined): boolean {
+  if (!char) return true; // undefined (字符串首尾之外) 视为边界
+  return PUNCTUATION_SET.has(char) || /\s/.test(char);
+}
 // MeiliSearch客户端
 const MEILI_HOST = process.env.MEILI_HOST || "http://127.0.0.1:7700";
 const MEILI_API_KEY = process.env.MEILI_API_KEY || "";
@@ -35,9 +44,15 @@ export const VERDICT_TEXT = [
   "未知错误",
 ];
 
+// // 清除标点符号
+// export function clearMark(str: string): string {
+//   return str.replace(/[，；。！？、：]/g, "");
+// }
+
 // 清除标点符号
 export function clearMark(str: string): string {
-  return str.replace(/[，；。！？、：]/g, "");
+  // 使用 Set 进行过滤
+  return str.split("").filter(char => !PUNCTUATION_SET.has(char) && !/\s/.test(char)).join("");
 }
 
 // 将标点符号转换为可选匹配
@@ -45,55 +60,108 @@ function markToAll(str: string): string {
   return str.replace(/[，；。！？、：]/g, "[，；。！？、：]?");
 }
 
-// 判断诗句是否匹配
-function judge(poem: string, inp: string): string | null {
-  let pattern = inp.split("").join(".?");
-  pattern = markToAll(pattern);
-  // 边界增加逗号，避免"，门泊东吴万里船"这类句子匹配失败
-  pattern = `(?<=[，；。！？]|^|\\s)${pattern}(?=[，；。！？]|$|\\s)`;
+// // 判断诗句是否匹配
+// function judge(poem: string, inp: string): string | null {
+//   console.log("judge", poem, inp);
+//   let pattern = inp.split("").join(".?");
+//   pattern = markToAll(pattern);
+//   // 边界增加逗号，避免"，门泊东吴万里船"这类句子匹配失败
+//   pattern = `(?<=[，；。！？]|^|\\s)${pattern}(?=[，；。！？]|$|\\s)`;
 
-  const regex = new RegExp(pattern);
-  const match = poem.match(regex);
+//   const regex = new RegExp(pattern);
+//   const match = poem.match(regex);
 
-  if (!match || !match[0]) return null;
+//   if (!match || !match[0]) return null;
 
-  let line = match[0];
-  if (!line) return null;
+//   let line = match[0];
+//   if (!line) return null;
 
-  const matchStartIndex = match.index!;
-  const matchEndIndex = matchStartIndex + line.length;
+//   const matchStartIndex = match.index!;
+//   const matchEndIndex = matchStartIndex + line.length;
 
-  // 如果末尾没有句末标点，尝试查找并添加
-  if (!OK_ENDING.includes(line[line.length - 1])) {
-    // 先检查紧跟着的字符是否是句末标点
-    const nextChar = poem[matchEndIndex];
-    if (nextChar && OK_ENDING.includes(nextChar)) {
-      line += nextChar;
-    } else {
-      // 如果下一个字符不是句末标点，继续向后查找直到找到句末标点
-      // 跳过逗号、顿号、冒号、分号等中间标点，查找句号、问号、感叹号
-      let searchIndex = matchEndIndex;
-      while (searchIndex < poem.length) {
-        const char = poem[searchIndex];
-        if (OK_ENDING.includes(char)) {
-          // 找到句末标点，将中间的内容（包括这个标点）都添加到结果中
-          line += poem.slice(matchEndIndex, searchIndex + 1);
-          break;
-        } else if (char === "，" || char === "、" || char === "：" || char === "；") {
-          // 跳过中间标点，继续查找
-          searchIndex++;
-        } else if (/[\u4e00-\u9fa5]/.test(char)) {
-          // 遇到中文字符，继续查找（可能是同一句的延续）
-          searchIndex++;
-        } else {
-          // 遇到其他字符（如空格、换行等），停止查找
-          break;
-        }
-      }
+//   // 如果末尾没有句末标点，尝试查找并添加
+//   if (!OK_ENDING.includes(line[line.length - 1])) {
+//     // 先检查紧跟着的字符是否是句末标点
+//     const nextChar = poem[matchEndIndex];
+//     if (nextChar && OK_ENDING.includes(nextChar)) {
+//       line += nextChar;
+//     } else {
+//       // 如果下一个字符不是句末标点，继续向后查找直到找到句末标点
+//       // 跳过逗号、顿号、冒号、分号等中间标点，查找句号、问号、感叹号
+//       let searchIndex = matchEndIndex;
+//       while (searchIndex < poem.length) {
+//         const char = poem[searchIndex];
+//         if (OK_ENDING.includes(char)) {
+//           // 找到句末标点，将中间的内容（包括这个标点）都添加到结果中
+//           line += poem.slice(matchEndIndex, searchIndex + 1);
+//           break;
+//         } else if (char === "，" || char === "、" || char === "：" || char === "；") {
+//           // 跳过中间标点，继续查找
+//           searchIndex++;
+//         } else if (/[\u4e00-\u9fa5]/.test(char)) {
+//           // 遇到中文字符，继续查找（可能是同一句的延续）
+//           searchIndex++;
+//         } else {
+//           // 遇到其他字符（如空格、换行等），停止查找
+//           break;
+//         }
+//       }
+//     }
+//   }
+
+//   return line;
+// }
+
+
+export function judge(poem: string, inp: string): string | null {
+  // 1. 清理输入
+  const cleanInp = inp.split("").filter(c => !isPunctuation(c)).join("");
+  if (!cleanInp) return null;
+
+  // 2. 构建映射
+  let poemClean = "";
+  const mapping: number[] = [];
+  for (let i = 0; i < poem.length; i++) {
+    const char = poem[i];
+    if (!isPunctuation(char)) {
+      poemClean += char;
+      mapping.push(i);
     }
   }
 
-  return line;
+  // 3. 查找
+  const matchIndex = poemClean.indexOf(cleanInp);
+  if (matchIndex === -1) return null;
+
+  // 4. 确定边界
+  const startRawIndex = mapping[matchIndex];
+  const endRawIndex = mapping[matchIndex + cleanInp.length - 1];
+
+  // 5. 前边界检查 (保持严格)
+  if (!isPunctuation(poem[startRawIndex - 1])) {
+    return null;
+  }
+
+  // =========================================================
+  // 6. 后边界检查 (白名单模式 - 终极严格版)
+  // =========================================================
+  const nextChar = poem[endRawIndex + 1];
+
+  // 情况 A: 后面没有字符了 (字符串结尾) -> 允许
+  // 例如诗句本身就是数据库字段的结尾
+  if (nextChar === undefined) {
+    return poem.slice(startRawIndex, endRawIndex + 1);
+  }
+
+  // 情况 B: 后面有字符，必须在 SENTENCE_ENDINGS 白名单里
+  // 只要 nextChar 不是 "。" "？" "！" "；" 之一，全部杀掉！
+  // 这会杀掉：逗号（，）、顿号（、）、空格（ ）、换行（\n）、汉字
+  if (SENTENCE_ENDINGS.has(nextChar)) {
+    return poem.slice(startRawIndex, endRawIndex + 1);
+  }
+
+  // 情况 C: 其他所有情况 -> 拒绝
+  return null;
 }
 
 // 更宽松的匹配：去除标点和空白后直接查找，返回原始输入作为匹配结果
@@ -105,16 +173,104 @@ function relaxedMatch(poem: string, inp: string): string | null {
   return null;
 }
 
-// 搜索诗句：根据用户输入在 MeiliSearch 中查找对应的诗句，并返回标题 + 【朝代·作者】 + 匹配句
+// // 搜索诗句：根据用户输入在 MeiliSearch 中查找对应的诗句，并返回标题 + 【朝代·作者】 + 匹配句
+// export async function searchPoem(
+//   poem: string
+// ): Promise<{ title: string; authorDisplay: string; matchedLine: string } | null> {
+//   try {
+//     const cleanPoem = clearMark(poem);
+//     if (!cleanPoem || cleanPoem.length < 3) return null;
+
+//     // 使用MeiliSearch搜索
+//     const results = await meiliClient.index("poetry").search(cleanPoem, {
+//       limit: 10,
+//       attributesToRetrieve: ["id", "title", "author", "dynasty", "content"],
+//     });
+
+//     if (!results.hits || results.hits.length === 0) {
+//       return null;
+//     }
+
+//     // 遍历搜索结果，找到包含该句的诗
+//     for (const hit of results.hits) {
+//       const content = hit.content as any;
+//       let fullText = "";
+
+//       // 将content转换为完整文本
+//       if (Array.isArray(content)) {
+//         for (const seg of content) {
+//           if (Array.isArray(seg)) {
+//             fullText += seg.join("");
+//           } else if (typeof seg === "string") {
+//             fullText += seg;
+//           }
+//         }
+//       } else if (typeof content === "string") {
+//         fullText = content;
+//       }
+
+//       // 尝试严格匹配
+//       const matched = judge(fullText, poem);
+//       if (matched) {
+//         // 命中后根据作者 ID 补全【朝代·姓名】
+//         let authorDisplay = String((hit as any).author || "");
+//         try {
+//           if (authorDisplay && authorDisplay.length === 8) {
+//             const poet = await meiliClient.index("poets").getDocument<any>(authorDisplay);
+//             const name = poet?.name || authorDisplay;
+//             const dynasty = poet?.dynasty || "";
+//             authorDisplay = dynasty ? `${dynasty}·${name}` : name;
+//           }
+//         } catch {
+//           // 查询失败时退回原始 author 字段
+//         }
+
+//         return {
+//           title: String((hit as any).title || ""),
+//           authorDisplay,
+//           matchedLine: matched,
+//         };
+//       }
+
+//       // 尝试放宽匹配
+//       const relaxed = relaxedMatch(fullText, poem);
+//       if (relaxed) {
+//         let authorDisplay = String((hit as any).author || "");
+//         try {
+//           if (authorDisplay && authorDisplay.length === 8) {
+//             const poet = await meiliClient.index("poets").getDocument<any>(authorDisplay);
+//             const name = poet?.name || authorDisplay;
+//             const dynasty = poet?.dynasty || "";
+//             authorDisplay = dynasty ? `${dynasty}·${name}` : name;
+//           }
+//         } catch {
+//           // ignore
+//         }
+
+//         return {
+//           title: String((hit as any).title || ""),
+//           authorDisplay,
+//           matchedLine: poem,
+//         };
+//       }
+//     }
+
+//     return null;
+//   } catch (error) {
+//     console.error("[poem-snake] searchPoem error:", error);
+//     return null;
+//   }
+// }
+
 export async function searchPoem(
   poem: string
 ): Promise<{ title: string; authorDisplay: string; matchedLine: string } | null> {
   try {
-    const cleanPoem = clearMark(poem);
-    if (!cleanPoem || cleanPoem.length < 3) return null;
+    // 过滤掉标点，检查长度
+    const cleanInput = poem.split("").filter(c => !isPunctuation(c)).join("");
+    if (!cleanInput || cleanInput.length < 2) return null;
 
-    // 使用MeiliSearch搜索
-    const results = await meiliClient.index("poetry").search(cleanPoem, {
+    const results = await meiliClient.index("poetry").search(cleanInput, {
       limit: 10,
       attributesToRetrieve: ["id", "title", "author", "dynasty", "content"],
     });
@@ -123,50 +279,23 @@ export async function searchPoem(
       return null;
     }
 
-    // 遍历搜索结果，找到包含该句的诗
     for (const hit of results.hits) {
       const content = hit.content as any;
       let fullText = "";
 
-      // 将content转换为完整文本
       if (Array.isArray(content)) {
         for (const seg of content) {
-          if (Array.isArray(seg)) {
-            fullText += seg.join("");
-          } else if (typeof seg === "string") {
-            fullText += seg;
-          }
+          if (Array.isArray(seg)) fullText += seg.join("");
+          else if (typeof seg === "string") fullText += seg;
         }
       } else if (typeof content === "string") {
         fullText = content;
       }
 
-      // 尝试严格匹配
+      // 仅使用严格的 judge
       const matched = judge(fullText, poem);
+
       if (matched) {
-        // 命中后根据作者 ID 补全【朝代·姓名】
-        let authorDisplay = String((hit as any).author || "");
-        try {
-          if (authorDisplay && authorDisplay.length === 8) {
-            const poet = await meiliClient.index("poets").getDocument<any>(authorDisplay);
-            const name = poet?.name || authorDisplay;
-            const dynasty = poet?.dynasty || "";
-            authorDisplay = dynasty ? `${dynasty}·${name}` : name;
-          }
-        } catch {
-          // 查询失败时退回原始 author 字段
-        }
-
-        return {
-          title: String((hit as any).title || ""),
-          authorDisplay,
-          matchedLine: matched,
-        };
-      }
-
-      // 尝试放宽匹配
-      const relaxed = relaxedMatch(fullText, poem);
-      if (relaxed) {
         let authorDisplay = String((hit as any).author || "");
         try {
           if (authorDisplay && authorDisplay.length === 8) {
@@ -182,7 +311,7 @@ export async function searchPoem(
         return {
           title: String((hit as any).title || ""),
           authorDisplay,
-          matchedLine: poem,
+          matchedLine: matched,
         };
       }
     }
