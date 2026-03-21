@@ -3,8 +3,24 @@ import { Server } from "socket.io";
 import { getDb } from "../../db";
 import { verifyToken } from "../../auth";
 import { assertTokenFresh } from "../../middleware";
-import { newTurn, getPublicScreenPoem, checkPoem, VERDICT, VERDICT_TEXT } from "./gamePoemSnake";
-import * as matchmaking from "./gamePoemSnakeMatchMaking";
+import { checkPoem, VERDICT, VERDICT_TEXT } from "./gamePoemSnake";
+import { publicRoomManager } from "./PoemSnakePublicManager";
+
+function getPublicScreenPoem() {
+  const q = publicRoomManager.getCurrentQuestion(publicRoomManager.PUBLIC_ROOM_ID);
+  const room = publicRoomManager.getPublicScreenRoom();
+  return {
+    content: q?.content || "",
+    origin: q?.poemTitle || "",
+    author: q?.author || "",
+    pos: room?.state?.currentPos || 0
+  };
+}
+async function newTurn() {
+  await publicRoomManager.applySkip(publicRoomManager.PUBLIC_ROOM_ID, 0);
+}
+
+import { poemSnakeRoomManager as matchmaking } from "./PoemSnakeGameManager";
 import { gameOnlineUsers, userRoomStatus, skipVoteTimers, endVoteTimers, getPublicScreenOnlineCount } from "./poemSnakeState";
 
 // ==================== 投票系统公共函数 ====================
@@ -94,7 +110,7 @@ function handleGameFinish(
 
   const allJoinedUsers = Array.from(room.allJoinedUsers || []);
   for (const joinedUid of allJoinedUsers) {
-    const userResult = finishResult.players.find((p) => p.uid === joinedUid);
+    const userResult = finishResult.players.find((p: any) => p.uid === joinedUid);
     if (userResult) {
       io.to(`user_${joinedUid}`).emit("room_game_finished", {
         results: finishResult.players,
@@ -103,7 +119,7 @@ function handleGameFinish(
     } else {
       const userInfo = db.prepare("SELECT username FROM users WHERE uid = ?").get(joinedUid) as { username: string } | undefined;
       if (userInfo) {
-        const scoreSummary = finishResult.players.map((p) => `${p.username}: 游戏得分 ${p.score}，${p.bonusScore > 0 ? `奖励 ${p.bonusScore}` : '无奖励'}，总积分 ${p.newTotalScore}`).join("；");
+        const scoreSummary = finishResult.players.map((p: any) => `${p.username}: 游戏得分 ${p.score}，${p.bonusScore > 0 ? `奖励 ${p.bonusScore}` : '无奖励'}，总积分 ${p.newTotalScore}`).join("；");
         io.to(`user_${joinedUid}`).emit("room_chat_message", {
           type: "system",
           message: {
@@ -389,7 +405,7 @@ export function setupPoemSnakeSocket(
 
       matchmaking.joinMatchmaking(uid);
       // 尝试匹配
-      const matchResult = matchmaking.tryMatch();
+      const matchResult = matchmaking.tryMatchWithDetails();
       if (matchResult.matched && matchResult.roomCode) {
         const roomCode = matchResult.roomCode;
         // 匹配成功，通知两个玩家
@@ -401,7 +417,7 @@ export function setupPoemSnakeSocket(
           }
           io.emit("online_count", { count: getPublicScreenOnlineCount() });
 
-          const roomPlayersData = room.players.map((p) => ({ uid: p.uid, username: p.username, avatar: p.avatar }));
+          const roomPlayersData = room.players.map((p: any) => ({ uid: p.uid, username: p.username, avatar: p.avatar }));
           for (const player of room.players) {
             io.to(`user_${player.uid}`).emit("matchmaking_matched", {
               roomCode,
@@ -460,7 +476,7 @@ export function setupPoemSnakeSocket(
                             io.to(`user_${player.uid}`).emit("room_game_started", {
                               roomCode,
                               question,
-                              players: gameRoom.players.map((p) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
+                              players: gameRoom.players.map((p: any) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
                             });
                           }
                         }
@@ -470,7 +486,7 @@ export function setupPoemSnakeSocket(
                       const errorRoom = matchmaking.getRoom(roomCode);
                       if (errorRoom) {
                         for (const player of errorRoom.players) {
-                          io.to(`user_${player.uid}`).emit("room_error", { error: result.error || "游戏开始失败" });
+                          io.to(`user_${player.uid}`).emit("room_error", { error: (result as any).error || "游戏开始失败" });
                         }
                       }
                     }
@@ -542,11 +558,11 @@ export function setupPoemSnakeSocket(
     });
 
     // 房间内聊天（仅房间玩家）
-    socket.on("room_chat_message", (data: { roomCode: string; message: string }) => {
+    socket.on("room_chat_message", async (data: { roomCode: string; message: string }) => {
       if (!data.message || !data.message.trim()) return;
       const room = matchmaking.getRoom(data.roomCode);
       if (!room) return;
-      if (!room.players.some((p) => p.uid === uid)) return;
+      if (!room.players.some((p: any) => p.uid === uid)) return;
 
       const msg = {
         id: Date.now().toString(),
@@ -565,7 +581,7 @@ export function setupPoemSnakeSocket(
     });
 
     // 加入房间
-    socket.on("room_join", (data: { roomCode: string }) => {
+    socket.on("room_join", async (data: { roomCode: string }) => {
       const existingRoomCode = matchmaking.findUserActiveRoom(uid);
       if (existingRoomCode && existingRoomCode !== data.roomCode) {
         socket.emit("room_error", { error: "你有未销毁的房间，已为你返回原房间", existingRoomCode });
@@ -580,7 +596,7 @@ export function setupPoemSnakeSocket(
       }
       const result = matchmaking.joinRoom(data.roomCode, uid, userWithAvatar.username, userWithAvatar.avatar);
       if (!result.success) {
-        socket.emit("room_error", { error: result.error || "加入房间失败" });
+        socket.emit("room_error", { error: (result as any).error || "加入房间失败" });
         return;
       }
 
@@ -591,7 +607,7 @@ export function setupPoemSnakeSocket(
           userRoomStatus.set(uid, data.roomCode);
           // 添加到房间在线用户
           room.onlineUsers.add(uid);
-          const roomPlayersData = room.players.map((p) => ({ uid: p.uid, username: p.username, avatar: p.avatar }));
+          const roomPlayersData = room.players.map((p: any) => ({ uid: p.uid, username: p.username, avatar: p.avatar }));
 
           // 更新公屏在线人数（排除房间中的用户）
           io.emit("online_count", { count: getPublicScreenOnlineCount() });
@@ -750,7 +766,7 @@ export function setupPoemSnakeSocket(
                           io.to(`user_${player.uid}`).emit("room_game_started", {
                             roomCode: data.roomCode,
                             question,
-                            players: finalRoom.players.map((p) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
+                            players: finalRoom.players.map((p: any) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
                           });
                         }
                       } else {
@@ -764,12 +780,12 @@ export function setupPoemSnakeSocket(
                         }
                       }
                     } else {
-                      console.error("[room] startGame failed", result.error);
+                      console.error("[room] startGame failed", (result as any).error);
                       // 如果失败，通知玩家
                       const errorRoom = matchmaking.getRoom(data.roomCode);
                       if (errorRoom) {
                         for (const player of errorRoom.players) {
-                          io.to(`user_${player.uid}`).emit("room_error", { error: result.error || "游戏开始失败" });
+                          io.to(`user_${player.uid}`).emit("room_error", { error: (result as any).error || "游戏开始失败" });
                         }
                       }
                     }
@@ -790,7 +806,7 @@ export function setupPoemSnakeSocket(
           }
         }
       } else {
-        socket.emit("room_error", { error: result.error });
+        socket.emit("room_error", { error: (result as any).error });
       }
     });
 
@@ -831,14 +847,14 @@ export function setupPoemSnakeSocket(
                   io.to(`user_${player.uid}`).emit("room_game_started", {
                     roomCode: data.roomCode,
                     question,
-                    players: startedRoom.players.map((p) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
+                    players: startedRoom.players.map((p: any) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
                     maxRounds: startedRoom.maxRounds,
                     autoStart: startedRoom.autoStart,
                   });
                 }
               }
             } else {
-              socket.emit("room_error", { error: result.error });
+              socket.emit("room_error", { error: (result as any).error });
             }
           }
         }, 1000);
@@ -856,14 +872,14 @@ export function setupPoemSnakeSocket(
             io.to(`user_${player.uid}`).emit("room_game_started", {
               roomCode: data.roomCode,
               question,
-              players: startedRoom.players.map((p) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
+              players: startedRoom.players.map((p: any) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
               maxRounds: startedRoom.maxRounds,
               autoStart: startedRoom.autoStart,
             });
           }
         }
       } else {
-        socket.emit("room_error", { error: result.error });
+        socket.emit("room_error", { error: (result as any).error });
       }
     });
 
@@ -948,7 +964,7 @@ export function setupPoemSnakeSocket(
               // 通知所有曾经加入的用户（包括已离开的）
               const allJoinedUsers = Array.from(updatedRoom.allJoinedUsers || []);
               for (const joinedUid of allJoinedUsers) {
-                const userResult = finishResult.players.find((p) => p.uid === joinedUid);
+                const userResult = finishResult.players.find((p: any) => p.uid === joinedUid);
                 if (userResult) {
                   // 在房间中的玩家，发送完整结果
                   io.to(`user_${joinedUid}`).emit("room_game_finished", {
@@ -960,7 +976,7 @@ export function setupPoemSnakeSocket(
                   const user = db.prepare("SELECT username FROM users WHERE uid = ?").get(joinedUid) as { username: string } | undefined;
                   if (user) {
                     // 构建积分播报消息
-                    const scoreSummary = finishResult.players.map((p) => `${p.username}: 游戏得分 ${p.score}，${p.bonusScore > 0 ? `奖励 ${p.bonusScore}` : '无奖励'}，总积分 ${p.newTotalScore}`).join("；");
+                    const scoreSummary = finishResult.players.map((p: any) => `${p.username}: 游戏得分 ${p.score}，${p.bonusScore > 0 ? `奖励 ${p.bonusScore}` : '无奖励'}，总积分 ${p.newTotalScore}`).join("；");
                     io.to(`user_${joinedUid}`).emit("chat_message", {
                       type: "system",
                       message: {
@@ -1007,7 +1023,7 @@ export function setupPoemSnakeSocket(
     });
 
     // 请求跳过（多人投票，10秒 >50%）
-    socket.on("room_request_skip", (data: { roomCode: string }) => {
+    socket.on("room_request_skip", async (data: { roomCode: string }) => {
       const user = db.prepare("SELECT username, avatar FROM users WHERE uid = ?").get(uid) as { username: string; avatar: string } | undefined;
       if (!user) {
         socket.emit("room_error", { error: "用户不存在" });
@@ -1021,16 +1037,16 @@ export function setupPoemSnakeSocket(
       }
 
       // 在调用 requestSkip 之前保存 initiator（如果已有投票在进行中）
-      const existingInitiator = room.skipInitiator;
+      const existingInitiator = (room as any).skipInitiator;
 
       const vote = matchmaking.requestSkip(data.roomCode, uid);
-      if (!vote.success && vote.error) {
-        socket.emit("room_error", { error: vote.error });
+      if (!vote.success && (vote as any).error) {
+        socket.emit("room_error", { error: (vote as any).error });
         return;
       }
 
       // 投票进行中（发起投票）
-      if (vote.state === "pending") {
+      if ((vote as any).state === "pending") {
         const msg = `${user.username} 发起跳过投票，请在 10 秒内输入 accept 同意跳过或输入 reject 拒绝跳过。`;
         for (const player of room.players) {
           io.to(`user_${player.uid}`).emit("room_chat_message", {
@@ -1048,9 +1064,9 @@ export function setupPoemSnakeSocket(
         // 启动超时结算
         if (!skipVoteTimers.has(data.roomCode)) {
           // 在超时回调之前保存 initiator，因为 resolveSkipVote 会清空投票状态
-          const initiator = room.skipInitiator;
-          const t = setTimeout(() => {
-            const res = matchmaking.resolveSkipVote(data.roomCode);
+          const initiator = (room as any).skipInitiator;
+          const t = setTimeout(async () => {
+            const res = await matchmaking.resolveSkipVote(data.roomCode);
             skipVoteTimers.delete(data.roomCode);
             const roomFinal = matchmaking.getRoom(data.roomCode);
             if (roomFinal) {
@@ -1094,9 +1110,9 @@ export function setupPoemSnakeSocket(
                 };
 
                 // 根据跳过结果决定下一步
-                if (res.skipChar) {
+                if ((res as any).skipChar) {
                   setTimeout(updateQuestion, 3000);
-                } else if (res.finished) {
+                } else if ((res as any).finished) {
                   handleGameFinish(io, db, data.roomCode, roomFinal);
                 } else {
                   updateQuestion();
@@ -1166,7 +1182,7 @@ export function setupPoemSnakeSocket(
     });
 
     // 同意跳过（投票，10秒）
-    socket.on("room_accept_skip", (data: { roomCode: string }) => {
+    socket.on("room_accept_skip", async (data: { roomCode: string }) => {
       const user = db.prepare("SELECT username FROM users WHERE uid = ?").get(uid) as { username: string } | undefined;
       if (!user) {
         socket.emit("room_error", { error: "用户不存在" });
@@ -1180,11 +1196,11 @@ export function setupPoemSnakeSocket(
       }
 
       // 在调用 acceptSkip 之前保存 initiator，因为 resolveSkipVote 会清空投票状态
-      const initiator = room.skipInitiator;
+      const initiator = (room as any).skipInitiator;
 
       const result = matchmaking.acceptSkip(data.roomCode, uid);
       if (!result.success) {
-        socket.emit("room_error", { error: result.error });
+        socket.emit("room_error", { error: (result as any).error });
         return;
       }
 
@@ -1213,7 +1229,7 @@ export function setupPoemSnakeSocket(
       }
 
       // 播报投票结果
-      broadcastVoteResult(io, room, result as { state: "applied" | "failed"; accept?: number; reject?: number; needed?: number; voteStatus?: Array<{ uid: number; username: string; status: "accept" | "reject" | "timeout" }> }, "skip");
+      broadcastVoteResult(io, room, (result as any) as { state: "applied" | "failed"; accept?: number; reject?: number; needed?: number; voteStatus?: Array<{ uid: number; username: string; status: "accept" | "reject" | "timeout" }> }, "skip");
 
       // 如果投票通过，处理跳过逻辑
       if (result.state === "applied") {
@@ -1251,9 +1267,9 @@ export function setupPoemSnakeSocket(
           }
         };
 
-        if (result.skipChar) {
+        if ((result as any).skipChar) {
           setTimeout(updateQuestion, 3000);
-        } else if (result.finished) {
+        } else if ((result as any).finished) {
           handleGameFinish(io, db, data.roomCode, room);
         } else {
           updateQuestion();
@@ -1262,10 +1278,10 @@ export function setupPoemSnakeSocket(
     });
 
     // 拒绝跳过（投票，10秒）
-    socket.on("room_reject_skip", (data: { roomCode: string }) => {
+    socket.on("room_reject_skip", async (data: { roomCode: string }) => {
       const result = matchmaking.rejectSkip(data.roomCode, uid);
       if (!result.success) {
-        socket.emit("room_error", { error: result.error });
+        socket.emit("room_error", { error: (result as any).error });
         return;
       }
 
@@ -1282,7 +1298,7 @@ export function setupPoemSnakeSocket(
       }
 
       // 在调用 rejectSkip 之前保存 initiator，因为 resolveSkipVote 会清空投票状态
-      const initiator = room.skipInitiator;
+      const initiator = (room as any).skipInitiator;
 
       // 投票进行中
       if (result.state === "pending") {
@@ -1302,13 +1318,13 @@ export function setupPoemSnakeSocket(
 
         // 检查是否所有人都已投票，如果是则立即结算
         const otherPlayers = room.players.filter(p => p.uid !== initiator);
-        const otherVotedCount = Array.from(room.skipVotes?.keys() || []).filter(uid => uid !== initiator).length;
+        const otherVotedCount = Array.from((room as any).skipVotes?.keys() || []).filter(uid => uid !== initiator).length;
         if (otherVotedCount >= otherPlayers.length) {
           if (skipVoteTimers.has(data.roomCode)) {
             clearTimeout(skipVoteTimers.get(data.roomCode)!);
             skipVoteTimers.delete(data.roomCode);
           }
-          const res = matchmaking.resolveSkipVote(data.roomCode, false);
+          const res = await matchmaking.resolveSkipVote(data.roomCode, false);
           broadcastVoteResult(io, room, res, "skip");
 
           if (res.state === "applied") {
@@ -1346,9 +1362,9 @@ export function setupPoemSnakeSocket(
               }
             };
 
-            if (res.skipChar) {
+            if ((res as any).skipChar) {
               setTimeout(updateQuestion, 3000);
-            } else if (res.finished) {
+            } else if ((res as any).finished) {
               handleGameFinish(io, db, data.roomCode, room);
             } else {
               updateQuestion();
@@ -1365,7 +1381,7 @@ export function setupPoemSnakeSocket(
       }
 
       // 播报投票结果
-      broadcastVoteResult(io, room, result as { state: "applied" | "failed"; accept?: number; reject?: number; needed?: number; voteStatus?: Array<{ uid: number; username: string; status: "accept" | "reject" | "timeout" }> }, "skip");
+      broadcastVoteResult(io, room, (result as any) as { state: "applied" | "failed"; accept?: number; reject?: number; needed?: number; voteStatus?: Array<{ uid: number; username: string; status: "accept" | "reject" | "timeout" }> }, "skip");
 
       // 如果投票通过，处理跳过逻辑
       if (result.state === "applied") {
@@ -1403,9 +1419,9 @@ export function setupPoemSnakeSocket(
           }
         };
 
-        if (result.skipChar) {
+        if ((result as any).skipChar) {
           setTimeout(updateQuestion, 3000);
-        } else if (result.finished) {
+        } else if ((result as any).finished) {
           handleGameFinish(io, db, data.roomCode, room);
         } else {
           updateQuestion();
@@ -1414,7 +1430,7 @@ export function setupPoemSnakeSocket(
     });
 
     // 离开房间（游戏进行中也可以离开）
-    socket.on("room_leave", (data: { roomCode: string }) => {
+    socket.on("room_leave", async (data: { roomCode: string }) => {
       const room = matchmaking.getRoom(data.roomCode);
       if (!room) {
         socket.emit("room_error", { error: "房间不存在" });
@@ -1451,7 +1467,7 @@ export function setupPoemSnakeSocket(
           // 更新玩家列表和在线人数
           io.to(`user_${player.uid}`).emit("room_players_update", {
             roomCode: data.roomCode,
-            players: updatedRoom.players.map((p) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
+            players: updatedRoom.players.map((p: any) => ({ uid: p.uid, username: p.username, avatar: p.avatar })),
             onlineUids: Array.from(updatedRoom.onlineUsers),
           });
           io.to(`user_${player.uid}`).emit("room_online_update", {
@@ -1472,10 +1488,10 @@ export function setupPoemSnakeSocket(
     });
 
     // 请求平局（1v1模式）
-    socket.on("room_request_draw", (data: { roomCode: string }) => {
+    socket.on("room_request_draw", async (data: { roomCode: string }) => {
       const result = matchmaking.requestDraw(data.roomCode, uid);
       if (!result.success) {
-        socket.emit("room_error", { error: result.error });
+        socket.emit("room_error", { error: (result as any).error });
         return;
       }
 
@@ -1506,7 +1522,7 @@ export function setupPoemSnakeSocket(
       }
 
       // 只通知对方显示平局请求提示（UI提示）
-      const otherPlayer = room.players.find((p) => p.uid !== uid);
+      const otherPlayer = room.players.find((p: any) => p.uid !== uid);
       if (otherPlayer) {
         io.to(`user_${otherPlayer.uid}`).emit("room_draw_requested", {
           uid,
@@ -1516,11 +1532,11 @@ export function setupPoemSnakeSocket(
     });
 
     // 同意平局（1v1模式）
-    socket.on("room_accept_draw", (data: { roomCode: string }) => {
+    socket.on("room_accept_draw", async (data: { roomCode: string }) => {
       try {
         const result = matchmaking.acceptDraw(data.roomCode, uid);
         if (!result.success) {
-          socket.emit("room_error", { error: result.error });
+          socket.emit("room_error", { error: (result as any).error });
           return;
         }
 
@@ -1531,12 +1547,12 @@ export function setupPoemSnakeSocket(
         }
 
         // 如果双方都同意，acceptDraw 已经调用了 finishGame
-        if (result.finished && result.finishResult) {
+        if ((result as any).finished && result.finishResult) {
           // 使用 acceptDraw 返回的结果，避免重复调用 finishGame
           // 通知所有曾经加入的用户（包括已离开的）
           const allJoinedUsers = Array.from(room.allJoinedUsers || []);
           for (const joinedUid of allJoinedUsers) {
-            const userResult = result.finishResult.players.find((p) => p.uid === joinedUid);
+            const userResult = result.finishResult.players.find((p: any) => p.uid === joinedUid);
             if (userResult) {
               // 在房间中的玩家，发送完整结果
               io.to(`user_${joinedUid}`).emit("room_game_finished", {
@@ -1548,7 +1564,7 @@ export function setupPoemSnakeSocket(
               const user = db.prepare("SELECT username FROM users WHERE uid = ?").get(joinedUid) as { username: string } | undefined;
               if (user) {
                 // 构建积分播报消息
-                const scoreSummary = result.finishResult.players.map((p) => `${p.username}: 游戏得分 ${p.score}，${p.bonusScore > 0 ? `奖励 ${p.bonusScore}` : '无奖励'}，总积分 ${p.newTotalScore}`).join("；");
+                const scoreSummary = result.finishResult.players.map((p: any) => `${p.username}: 游戏得分 ${p.score}，${p.bonusScore > 0 ? `奖励 ${p.bonusScore}` : '无奖励'}，总积分 ${p.newTotalScore}`).join("；");
                 io.to(`user_${joinedUid}`).emit("chat_message", {
                   type: "system",
                   message: {
@@ -1574,7 +1590,7 @@ export function setupPoemSnakeSocket(
           }
         } else {
           // 通知对方已同意
-          const otherPlayer = room.players.find((p) => p.uid !== uid);
+          const otherPlayer = room.players.find((p: any) => p.uid !== uid);
           if (otherPlayer) {
             io.to(`user_${otherPlayer.uid}`).emit("room_chat_message", {
               type: "system",
@@ -1595,7 +1611,7 @@ export function setupPoemSnakeSocket(
     });
 
     // 结束房间（发起投票，>50%）
-    socket.on("room_end", (data: { roomCode: string }) => {
+    socket.on("room_end", async (data: { roomCode: string }) => {
       const user = db.prepare("SELECT username FROM users WHERE uid = ?").get(uid) as { username: string } | undefined;
       if (!user) {
         socket.emit("room_error", { error: "用户不存在" });
@@ -1609,13 +1625,13 @@ export function setupPoemSnakeSocket(
       }
 
       const vote = matchmaking.requestEnd(data.roomCode, uid);
-      if (!vote.success && vote.error) {
-        socket.emit("room_error", { error: vote.error });
+      if (!vote.success && (vote as any).error) {
+        socket.emit("room_error", { error: (vote as any).error });
         return;
       }
 
       // 如果直接结束（只有1人等特殊情况），处理结束逻辑
-      if (vote.state === "applied") {
+      if ((vote as any).state === "applied") {
         // 直接结束的情况
         let finishResult: { players: Array<{ uid: number; username: string; score: number; bonusScore: number; newTotalScore: number }> } | null = null;
         if (room.status === "playing") {
@@ -1625,7 +1641,7 @@ export function setupPoemSnakeSocket(
         if (finishResult) {
           const allJoinedUsers = Array.from(room.allJoinedUsers || []);
           for (const joinedUid of allJoinedUsers) {
-            const userResult = finishResult.players.find((p) => p.uid === joinedUid);
+            const userResult = finishResult.players.find((p: any) => p.uid === joinedUid);
             if (userResult) {
               io.to(`user_${joinedUid}`).emit("room_game_finished", {
                 results: finishResult.players,
@@ -1634,7 +1650,7 @@ export function setupPoemSnakeSocket(
             } else {
               const userInfo = db.prepare("SELECT username FROM users WHERE uid = ?").get(joinedUid) as { username: string } | undefined;
               if (userInfo) {
-                const scoreSummary = finishResult.players.map((p) => `${p.username}: 游戏得分 ${p.score}，${p.bonusScore > 0 ? `奖励 ${p.bonusScore}` : '无奖励'}，总积分 ${p.newTotalScore}`).join("；");
+                const scoreSummary = finishResult.players.map((p: any) => `${p.username}: 游戏得分 ${p.score}，${p.bonusScore > 0 ? `奖励 ${p.bonusScore}` : '无奖励'}，总积分 ${p.newTotalScore}`).join("；");
                 io.to(`user_${joinedUid}`).emit("room_chat_message", {
                   type: "system",
                   message: {
@@ -1661,7 +1677,7 @@ export function setupPoemSnakeSocket(
       }
 
       // 投票进行中（发起投票）
-      if (vote.state === "pending") {
+      if ((vote as any).state === "pending") {
         const msg = `${user.username} 发起结束房间投票，请在 10 秒内投票`;
         for (const player of room.players) {
           io.to(`user_${player.uid}`).emit("room_chat_message", {
@@ -1687,9 +1703,9 @@ export function setupPoemSnakeSocket(
         // 启动超时结算
         if (!endVoteTimers.has(data.roomCode)) {
           // 在超时回调之前保存 initiator，因为 resolveEndVote 会清空投票状态
-          const initiator = room.endInitiator;
-          const t = setTimeout(() => {
-            const res = matchmaking.resolveEndVote(data.roomCode);
+          const initiator = (room as any).endInitiator;
+          const t = setTimeout(async () => {
+            const res = await matchmaking.resolveEndVote(data.roomCode);
             endVoteTimers.delete(data.roomCode);
             const roomFinal = matchmaking.getRoom(data.roomCode);
             if (roomFinal) {
@@ -1719,7 +1735,7 @@ export function setupPoemSnakeSocket(
     });
 
     // 同意结束房间
-    socket.on("room_accept_end", (data: { roomCode: string }) => {
+    socket.on("room_accept_end", async (data: { roomCode: string }) => {
       const user = db.prepare("SELECT username FROM users WHERE uid = ?").get(uid) as { username: string } | undefined;
       if (!user) {
         socket.emit("room_error", { error: "用户不存在" });
@@ -1734,12 +1750,12 @@ export function setupPoemSnakeSocket(
 
       const vote = matchmaking.acceptEnd(data.roomCode, uid);
       if (!vote.success) {
-        socket.emit("room_error", { error: vote.error });
+        socket.emit("room_error", { error: (vote as any).error });
         return;
       }
 
       // 投票进行中
-      if (vote.state === "pending") {
+      if ((vote as any).state === "pending") {
         const msg = `${user.username} 同意结束房间`;
         for (const player of room.players) {
           io.to(`user_${player.uid}`).emit("room_chat_message", {
@@ -1763,7 +1779,7 @@ export function setupPoemSnakeSocket(
       }
 
       // 如果投票通过，处理结束逻辑
-      if (vote.state === "applied") {
+      if ((vote as any).state === "applied") {
         if (room.status === "playing") {
           handleGameFinish(io, db, data.roomCode, room);
         } else {
@@ -1779,7 +1795,7 @@ export function setupPoemSnakeSocket(
     });
 
     // 拒绝结束房间（投票，自建房）
-    socket.on("room_reject_end", (data: { roomCode: string }) => {
+    socket.on("room_reject_end", async (data: { roomCode: string }) => {
       const user = db.prepare("SELECT username FROM users WHERE uid = ?").get(uid) as { username: string } | undefined;
       if (!user) {
         socket.emit("room_error", { error: "用户不存在" });
@@ -1793,8 +1809,8 @@ export function setupPoemSnakeSocket(
       }
 
       const rejectVote = matchmaking.rejectEnd(data.roomCode, uid);
-      if (!rejectVote.success && rejectVote.error) {
-        socket.emit("room_error", { error: rejectVote.error });
+      if (!rejectVote.success && (rejectVote as any).error) {
+        socket.emit("room_error", { error: (rejectVote as any).error });
         return;
       }
 
@@ -1815,15 +1831,15 @@ export function setupPoemSnakeSocket(
         }
 
         // 检查是否所有人都已投票，如果是则立即结算
-        const initiator = room.endInitiator;
+        const initiator = (room as any).endInitiator;
         const otherPlayers = room.players.filter(p => p.uid !== initiator);
-        const otherVotedCount = Array.from(room.endVotes?.keys() || []).filter(uid => uid !== initiator).length;
+        const otherVotedCount = Array.from((room as any).endVotes?.keys() || []).filter(uid => uid !== initiator).length;
         if (otherVotedCount >= otherPlayers.length) {
           if (endVoteTimers.has(data.roomCode)) {
             clearTimeout(endVoteTimers.get(data.roomCode)!);
             endVoteTimers.delete(data.roomCode);
           }
-          const res = matchmaking.resolveEndVote(data.roomCode, false);
+          const res = await matchmaking.resolveEndVote(data.roomCode);
           broadcastVoteResult(io, room, res, "end");
 
           if (res.state === "applied") {
@@ -1851,10 +1867,10 @@ export function setupPoemSnakeSocket(
     });
 
     // 拒绝平局（1v1模式）
-    socket.on("room_reject_draw", (data: { roomCode: string }) => {
+    socket.on("room_reject_draw", async (data: { roomCode: string }) => {
       const result = matchmaking.rejectDraw(data.roomCode, uid);
       if (!result.success) {
-        socket.emit("room_error", { error: result.error });
+        socket.emit("room_error", { error: (result as any).error });
         return;
       }
 
@@ -1871,7 +1887,7 @@ export function setupPoemSnakeSocket(
       }
 
       // 找到请求平局的人
-      const drawRequester = room.players.find((p) => p.uid !== uid);
+      const drawRequester = room.players.find((p: any) => p.uid !== uid);
       if (drawRequester) {
         // 通知请求平局的人，对方拒绝了（在聊天框显示）
         io.to(`user_${drawRequester.uid}`).emit("room_chat_message", {

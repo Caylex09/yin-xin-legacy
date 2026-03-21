@@ -2,8 +2,8 @@
 import { Request, Response, Router } from "express";
 import { getDb } from "../../db";
 import { verifyToken } from "../../auth";
-import { getPublicScreenPoem } from "./gamePoemSnake";
-import * as matchmaking from "./gamePoemSnakeMatchMaking";
+import { publicRoomManager } from "./PoemSnakePublicManager";
+import { poemSnakeRoomManager as matchmaking } from "./PoemSnakeGameManager";
 
 // 辅助函数：验证 token 并获取 uid
 function getUidFromRequest(req: Request): number | null {
@@ -25,7 +25,7 @@ function requireLogin(req: Request, res: Response, next: () => void) {
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     if (!token) return res.status(401).json({ error: "缺少 token" });
     const payload = verifyToken(token) as { sub: number; tokenVersion?: number };
-    
+
     // 验证 token 是否有效
     const db = getDb();
     const row = db
@@ -34,7 +34,7 @@ function requireLogin(req: Request, res: Response, next: () => void) {
     if (!row) throw new Error("用户不存在");
     if (row.token_version !== payload.tokenVersion) throw new Error("token 失效，请重新登录");
     if (row.role < 0) throw new Error("账号已封禁");
-    
+
     (req as any).uid = payload.sub;
     next();
   } catch (e) {
@@ -49,15 +49,20 @@ export function createPoemSnakeApiRouter() {
   // 获取公屏游戏状态
   router.get("/api/game/poem-snake/state", (_req, res) => {
     try {
-      const poem = getPublicScreenPoem();
+      const publicRoom = publicRoomManager.getPublicScreenRoom();
+      if (!publicRoom) return res.status(500).json({ error: "公屏未初始化" });
+      const currentPoem = publicRoom.state.poems[publicRoom.currentRound - 1];
+      if (!currentPoem) return res.status(500).json({ error: "公屏加载中" });
+
       res.json({
-        currentPoem: poem.content,
-        highlightedChar: poem.content[poem.pos] || "",
-        author: poem.author,
-        authorName: poem.author,
-        poemTitle: poem.origin,
+        currentPoem: currentPoem.content,
+        highlightedChar: currentPoem.content[publicRoom.state.currentPos] || "",
+        author: currentPoem.author,
+        authorName: currentPoem.author,
+        poemTitle: currentPoem.origin,
         round: 1,
         isActive: true,
+        pos: publicRoom.state.currentPos,
       });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
@@ -148,7 +153,7 @@ export function createPoemSnakeApiRouter() {
         return res.json({ exists: false, inRoom: false, canJoin: false });
       }
 
-      const inRoom = room.players.some((p) => p.uid === uid);
+      const inRoom = room.players.some((p: any) => p.uid === uid);
       // 只要房间存在（游戏未开始或正在游戏中），都可以返回
       const canJoin = room.status === "waiting" || room.status === "playing";
 
@@ -174,7 +179,7 @@ export function createPoemSnakeApiRouter() {
       }
 
       // 检查用户是否在房间中
-      if (!room.players.some((p) => p.uid === uid)) {
+      if (!room.players.some((p: any) => p.uid === uid)) {
         return res.status(403).json({ error: "你不是该房间的玩家" });
       }
 

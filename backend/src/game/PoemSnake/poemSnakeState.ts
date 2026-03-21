@@ -1,7 +1,7 @@
 // PoemSnake 游戏状态管理
 import { Server } from "socket.io";
-import { newGame } from "./gamePoemSnake";
-import * as matchmaking from "./gamePoemSnakeMatchMaking";
+
+import { poemSnakeRoomManager as matchmaking } from "./PoemSnakeGameManager";
 import { setupPoemSnakeSocket } from "./poemSnakeSocket";
 import { onlineUsers, startOnlineUserCleanup } from "../../onlineApi";
 
@@ -45,7 +45,7 @@ export async function initializePoemSnake(io: Server) {
   setupPoemSnakeSocket(io, onlineUsers);
 
   // 初始化游戏
-  await newGame();
+  // // await newGame();
   console.log("游戏初始化完成");
 
   // 启动房间清理定时器（必须在 io 初始化后）
