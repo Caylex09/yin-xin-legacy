@@ -1,6 +1,6 @@
 // import React from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { API_BASE } from "../layout";
+import { API_BASE } from "../config";
 import { login } from "../auth";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useState } from "react";

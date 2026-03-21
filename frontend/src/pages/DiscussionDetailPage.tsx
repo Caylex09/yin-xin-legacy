@@ -1,6 +1,6 @@
 // import React from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { API_BASE } from "../layout";
+import { API_BASE } from "../config";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { formatDate } from "../utils/format";

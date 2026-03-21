@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { API_BASE } from "../layout";
+import { API_BASE } from "../config";
 import { initAuthUI } from "../auth";
 
 export function Layout({ children }: React.PropsWithChildren) {
@@ -40,7 +40,7 @@ export function Layout({ children }: React.PropsWithChildren) {
       </header>
       <main className="main">{children}</main>
       <footer className="footer">
-        © 2025 吟心 | <a href="http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=1LQ1dTeqha0TSoSNiYSs16xhxgEIAJJ4&authKey=VzCbL0E5wtE8rE6%2BKa6GR0gCdxoOO0fxm1P3Sy8BdW5PcEu4LZ%2FLWPUQ0p5hH4Ta&noverify=0&group_code=211902065" target="_blank" rel="noreferrer"> QQ 群 211902065
+        © 2026 吟心 (Build: <a href={`https://github.com/Caylex09/yin-xin/commit/${__GIT_COMMIT_HASH__}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>{__GIT_COMMIT_HASH__}</a>) | <a href="http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=1LQ1dTeqha0TSoSNiYSs16xhxgEIAJJ4&authKey=VzCbL0E5wtE8rE6%2BKa6GR0gCdxoOO0fxm1P3Sy8BdW5PcEu4LZ%2FLWPUQ0p5hH4Ta&noverify=0&group_code=211902065" target="_blank" rel="noreferrer"> QQ 群 211902065
         </a>
       </footer>
     </div>

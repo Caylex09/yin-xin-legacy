@@ -1,6 +1,6 @@
 // import React from "react";
 import { useParams } from "react-router-dom";
-import { API_BASE } from "../../layout";
+import { API_BASE } from "../../config";
 import { getToken } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useCallback, useEffect, useState } from "react";

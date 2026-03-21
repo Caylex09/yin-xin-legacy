@@ -1,5 +1,5 @@
 // import React from "react";
-import { API_BASE } from "../layout";
+import { API_BASE } from "../config";
 import { fetchProfile, getToken, type ProfileWithRole } from "../auth";
 import { useCallback, useEffect, useState } from "react";
 

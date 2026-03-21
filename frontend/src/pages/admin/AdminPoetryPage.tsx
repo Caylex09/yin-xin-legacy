@@ -1,6 +1,6 @@
 // import React from "react";
 import { Link } from "react-router-dom";
-import { API_BASE } from "../../layout";
+import { API_BASE } from "../../config";
 import { getToken, fetchProfile, type ProfileWithRole } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { renderSegments, splitSentences } from "../../utils/poetry.tsx";

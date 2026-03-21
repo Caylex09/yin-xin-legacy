@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useSearchParams, useParams } from "react-router-dom";
 import "./style.css";
-import { API_BASE } from "./layout";
+import { API_BASE } from "./config";
 import { initAuthUI, login, register, sendCode, fetchProfile, getToken, clearToken } from "./auth";
 import type { ProfileWithRole } from "./auth";
 import { usePageTitle } from "./hooks/usePageTitle";

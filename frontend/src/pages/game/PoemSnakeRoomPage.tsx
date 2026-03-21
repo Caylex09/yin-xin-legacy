@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { API_BASE } from "../../layout";
+import { API_BASE } from "../../config";
 import { getToken, fetchProfile } from "../../auth";
 import { io, Socket } from "socket.io-client";
 

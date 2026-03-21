@@ -1,6 +1,6 @@
 // import React from "react";
 import { Link, useParams } from "react-router-dom";
-import { API_BASE } from "../../layout";
+import { API_BASE } from "../../config";
 import { getToken, type ProfileWithRole } from "../../auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { roleText, formatDate } from "../../utils/format";
