@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { API_BASE } from "../../config";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { formatDate } from "../../utils/format";
-import { getToken } from "../../auth";
+import { getToken, fetchProfile, type ProfileWithRole } from "../../auth";
 import { useToast } from "../../hooks/useToast";
 import { useConfirm } from "../../hooks/useConfirm";
 import { Toast } from "../../components/Toast";
@@ -18,6 +18,7 @@ export function DiscussionListPage() {
   const [params, setParams] = useSearchParams();
   const pageParam = Math.max(1, parseInt(params.get("page") || "1", 10));
   const [totalPages, setTotalPages] = useState(1);
+  const [profile, setProfile] = useState<ProfileWithRole | null>(null);
   const { toast, showToast, hideToast } = useToast();
   const { confirm, showConfirm, hideConfirm } = useConfirm();
 
@@ -27,11 +28,12 @@ export function DiscussionListPage() {
     setParams(new URLSearchParams({ page: String(np) }));
   };
 
-  const loadDiscussions = useCallback(async (currentPage = 1) => {
+  const loadDiscussions = useCallback(async (currentPage = 1, includeDeleted = false) => {
     setLoading(true);
     setError("");
     try {
-      const resp = await fetch(`${API_BASE}/discussions?page=${currentPage}&limit=20`);
+      const url = `${API_BASE}/discussions?page=${currentPage}&limit=20${includeDeleted ? "&includeDeleted=1" : ""}`;
+      const resp = await fetch(url);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
       if (data.items) {
@@ -49,7 +51,11 @@ export function DiscussionListPage() {
   }, []);
 
   useEffect(() => {
-    loadDiscussions(pageParam);
+    fetchProfile(API_BASE).then((p) => {
+      setProfile(p);
+      const isSuperAdmin = !!p?.isSuperAdmin;
+      loadDiscussions(pageParam, isSuperAdmin);
+    });
   }, [loadDiscussions, pageParam]);
 
   const deleteDiscussion = async (id: number) => {
@@ -66,13 +72,31 @@ export function DiscussionListPage() {
         .then(async (resp) => {
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-          loadDiscussions(pageParam);
+          loadDiscussions(pageParam, !!profile?.isSuperAdmin);
           showToast("删除成功", "success");
         })
         .catch((e) => {
           showToast((e as Error).message, "error");
         });
     }, { type: "danger" });
+  };
+
+
+  const restoreDiscussion = async (id: number) => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(`${API_BASE}/discussions/${id}/restore`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+      loadDiscussions(pageParam, !!profile?.isSuperAdmin);
+      showToast("恢复成功", "success");
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    }
   };
 
   return (
@@ -109,11 +133,25 @@ export function DiscussionListPage() {
                     {" · "}
                     {formatDate(d.created_at)}
                     {d.reply_count > 0 && ` · ${d.reply_count} 条回复`}
+                    {d.deleted ? " · 已删除" : ""}
                   </div>
                   <div style={{ marginTop: 8 }}>
                     <Link className="btn ghost" to={`/discussion/${d.id}`} style={{ fontSize: "14px" }}>
                       查看详情 →
                     </Link>
+                    {(profile?.isSuperAdmin || (profile?.uid && profile.uid === d.created_by)) ? (
+                      <>
+                        {!d.deleted ? (
+                          <button className="btn ghost" onClick={() => deleteDiscussion(d.id)} style={{ fontSize: "14px", marginLeft: 8 }}>
+                            删除
+                          </button>
+                        ) : (
+                          <button className="btn ghost" onClick={() => restoreDiscussion(d.id)} style={{ fontSize: "14px", marginLeft: 8 }}>
+                            恢复
+                          </button>
+                        )}
+                      </>
+                    ) : null}
                   </div>
                 </article>
               ))}

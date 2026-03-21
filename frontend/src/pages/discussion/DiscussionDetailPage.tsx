@@ -177,7 +177,7 @@ export function DiscussionDetailPage() {
                         <div className="hit-content" style={{ marginTop: 0 }}>
                             <MarkdownRenderer content={discussion.content} />
                         </div>
-                        {profile && (discussion.created_by === profile.uid || profile.isSuperAdmin) && (
+                        {profile && (discussion.created_by === profile.uid || profile.isSuperAdmin) ? (
                             <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
                                 <Link className="btn ghost" to={`/discussion/${id}/edit`}>
                                     编辑
@@ -186,7 +186,7 @@ export function DiscussionDetailPage() {
                                     删除
                                 </button>
                             </div>
-                        )}
+                        ) : null}
                     </article>
 
                     <div style={{ marginTop: 32 }}>
@@ -213,7 +213,7 @@ export function DiscussionDetailPage() {
                                         <div className="hit-content" style={{ marginTop: 8 }}>
                                             <MarkdownRenderer content={reply.content} />
                                         </div>
-                                        {profile && (reply.created_by === profile.uid || profile.isSuperAdmin) && (
+                                        {profile && (reply.created_by === profile.uid || profile.isSuperAdmin) ? (
                                             <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
                                                 <button
                                                     className="btn ghost"
@@ -272,7 +272,7 @@ export function DiscussionDetailPage() {
                                                     删除
                                                 </button>
                                             </div>
-                                        )}
+                                        ) : null}
                                     </article>
                                 ))}
                             </div>

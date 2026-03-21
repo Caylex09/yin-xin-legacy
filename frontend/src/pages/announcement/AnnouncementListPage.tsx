@@ -49,7 +49,7 @@ export function AnnouncementListPage() {
   useEffect(() => {
     fetchProfile(API_BASE).then((p) => {
       setProfile(p);
-      const includeDeleted = p?.role && p.role > 0 && p.isAnnouncementAdmin ? true : false;
+      const includeDeleted = !!(p?.isSuperAdmin || (p?.role && p.role > 0 && p.isAnnouncementAdmin));
       loadAnnouncements(includeDeleted, pageParam);
     });
   }, [loadAnnouncements, pageParam]);
@@ -60,7 +60,7 @@ export function AnnouncementListPage() {
   };
 
   const deleteAnnouncement = async (id: number) => {
-    if (!profile?.role || profile.role < 1 || !profile.isAnnouncementAdmin) return;
+    if (!profile?.isSuperAdmin && (!profile?.role || profile.role < 1 || !profile.isAnnouncementAdmin)) return;
     const token = getToken();
     if (!token) return;
     showConfirm("确定要删除这条公告吗？", () => {
@@ -71,7 +71,7 @@ export function AnnouncementListPage() {
         .then(async (resp) => {
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-          const includeDeleted = profile?.role && profile.role > 0 && profile.isAnnouncementAdmin ? true : false;
+          const includeDeleted = !!(profile?.isSuperAdmin || (profile?.role && profile.role > 0 && profile.isAnnouncementAdmin));
           loadAnnouncements(includeDeleted, pageParam);
           showToast("删除成功", "success");
         })
@@ -82,7 +82,7 @@ export function AnnouncementListPage() {
   };
 
   const restoreAnnouncement = async (id: number) => {
-    if (!profile?.role || profile.role < 1 || !profile.isAnnouncementAdmin) return;
+    if (!profile?.isSuperAdmin && (!profile?.role || profile.role < 1 || !profile.isAnnouncementAdmin)) return;
     const token = getToken();
     if (!token) return;
     try {
@@ -92,7 +92,7 @@ export function AnnouncementListPage() {
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-      const includeDeleted = profile?.role && profile.role > 0 && profile.isAnnouncementAdmin ? true : false;
+      const includeDeleted = !!(profile?.isSuperAdmin || (profile?.role && profile.role > 0 && profile.isAnnouncementAdmin));
       loadAnnouncements(includeDeleted, pageParam);
       showToast("恢复成功", "success");
     } catch (e) {
@@ -135,7 +135,7 @@ export function AnnouncementListPage() {
                     <Link className="btn ghost" to={`/announcement/${a.id}`} style={{ fontSize: "14px" }}>
                       查看全文 →
                     </Link>
-                    {profile?.role && profile.role > 0 && profile.isAnnouncementAdmin && (
+                    {profile?.isSuperAdmin || (profile?.role && profile.role > 0 && profile.isAnnouncementAdmin) ? (
                       <>
                         <Link className="btn ghost" to={`/announcement/${a.id}/edit`} style={{ fontSize: "14px", marginLeft: 8 }}>
                           编辑
@@ -150,7 +150,7 @@ export function AnnouncementListPage() {
                           </button>
                         )}
                       </>
-                    )}
+                    ) : null}
                   </div>
                 </article>
               ))}
@@ -169,13 +169,13 @@ export function AnnouncementListPage() {
             </button>
           </div>
 
-          {profile?.role && profile.role > 0 && profile.isAnnouncementAdmin && (
+          {(profile?.isSuperAdmin || (profile?.role && profile.role > 0 && profile.isAnnouncementAdmin)) ? (
             <div style={{ marginTop: 16 }}>
               <Link className="btn" to="/announcement/new">
                 发布新公告
               </Link>
             </div>
-          )}
+          ) : null}
         </div>
       </section>
       {toast && <Toast message={toast.message} type={toast.type} duration={toast.duration} onClose={hideToast} />}

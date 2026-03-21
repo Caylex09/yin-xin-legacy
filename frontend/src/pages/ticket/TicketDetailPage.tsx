@@ -244,16 +244,16 @@ export function TicketDetailPage() {
             <div className="hit-content" style={{ marginTop: 0 }}>
               <MarkdownRenderer content={ticket.content} />
             </div>
-            {profile && (ticket.created_by === profile.uid || profile.isSuperAdmin) && (
+            {profile && (ticket.created_by === profile.uid || profile.isSuperAdmin) ? (
               <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
                 <Link className="btn ghost" to={`/ticket/${id}/edit`}>
                   编辑
                 </Link>
               </div>
-            )}
+            ) : null}
           </article>
 
-          {isAdmin && (
+          {isAdmin ? (
             <div style={{ marginTop: 16, padding: 16, background: "#f9f9f9", borderRadius: 8 }}>
               <h3 style={{ marginBottom: 12 }}>管理员操作</h3>
               {isOpen ? (
@@ -276,7 +276,7 @@ export function TicketDetailPage() {
                 </div>
               )}
             </div>
-          )}
+          ) : null}
 
           <div style={{ marginTop: 32 }}>
             <h2 style={{ fontSize: "1.5em", marginBottom: 16 }}>回复 ({replies.length})</h2>
