@@ -1,7 +1,7 @@
 // 匹配和房间系统
 import { getDb } from "../../db";
 import { getPoem } from "../gameApi";
-import { searchPoem, clearMark, VERDICT, VERDICT_TEXT } from "../gameApi";
+import { searchPoem, clearMark, VERDICT, VERDICT_TEXT, extractSentence } from "../gameApi";
 import crypto from "crypto";
 
 const PUNCTUATION = ["，", "？", "。", "！", "：", "、", "；"];
@@ -69,9 +69,12 @@ async function checkPoemForMatch(poem: string, targetContent: string, targetPos:
   }
 
   // 成功找到匹配的诗句
+  // 提取只包含高亮字符的那一句（以句号、问号、感叹号、分号为界）
+  const extractedSentence = extractSentence(searchResult.matchedLine, highlightedChar);
+
   return {
     verdict: VERDICT.CORRECT,
-    data: [searchResult.title, searchResult.authorDisplay, searchResult.matchedLine],
+    data: [searchResult.title, searchResult.authorDisplay, extractedSentence],
   };
 }
 
@@ -380,7 +383,13 @@ export async function submitAnswer(roomCode: string, uid: number, answer: string
     room.playerScores.set(uid, currentScore + 5);
 
     // 清除所有 skip 请求（因为已经有人回答正确了）
-    room.skipRequests.clear();
+    if (room.skipRequests) {
+      room.skipRequests.clear();
+    }
+    if (room.skipVotes) {
+      room.skipVotes.clear();
+    }
+    room.skipInitiator = undefined;
 
     // 移动到下一个字符（跳过标点符号）
     const PUNCTUATION = ["，", "？", "。", "！", "：", "、", "；"];
@@ -504,9 +513,11 @@ function clearSkipVote(room: Room) {
   //   room.skipTimer = undefined;
   // }
   if (room.skipRequests) room.skipRequests.clear();
+  else room.skipRequests = new Set<number>();
+
   if (room.skipVotes) room.skipVotes.clear();
-  delete (room as any).skipRequests;
-  delete (room as any).skipVotes;
+  else room.skipVotes = new Map<number, "accept" | "reject">();
+
   room.skipInitiator = undefined;
   room.skipVoteOnlineCount = undefined;
 }
@@ -566,42 +577,9 @@ export function requestSkip(roomCode: string, uid: number): {
     return { success: false, state: "failed", skipChar: false, error: "你不是该房间的玩家" };
   }
 
-  // 如果已有投票在进行中，且当前用户还没有投票，自动将其添加为同意票
+  // 如果已有投票在进行中，拒绝新的 skip 请求，提示用户输入 accept 或 reject
   if (room.skipInitiator !== undefined) {
-    // 检查当前用户是否已经投票
-    const hasVoted = room.skipVotes?.has(uid) || false;
-    if (hasVoted) {
-      return { success: false, state: "failed", error: "你已投票，无需重复操作" };
-    }
-    // 如果当前用户是发起者，不应该再次投票
-    if (uid === room.skipInitiator) {
-      return { success: false, state: "failed", error: "发起者已自动同意，无需再次投票" };
-    }
-    // 自动将当前用户添加为同意票（相当于调用 acceptSkip）
-    if (!room.skipVotes) room.skipVotes = new Map<number, "accept" | "reject">();
-    if (!room.skipRequests) room.skipRequests = new Set<number>();
-    room.skipVotes.set(uid, "accept");
-    room.skipRequests.add(uid);
-    room.lastActivity = Date.now();
-
-    // 使用发起投票时记录的在线人数，如果没有则使用当前在线人数或玩家数
-    const voteOnlineCount = room.skipVoteOnlineCount ?? (room.onlineUsers?.size || room.players.length);
-    const needed = Math.floor(voteOnlineCount / 2) + 1;
-    const accept = room.skipRequests.size;
-    const reject = room.skipVotes.size - accept;
-    const current = accept;
-
-    // 检查是否所有人都已投票（除了发起者）
-    const initiator = room.skipInitiator;
-    const otherPlayers = room.players.filter(p => p.uid !== initiator);
-    const otherVotedCount = Array.from(room.skipVotes.keys()).filter(uid => uid !== initiator).length;
-    if (otherVotedCount >= otherPlayers.length) {
-      // 所有人（除了发起者）都已投票，检查结果
-      const pass = accept >= needed;
-      return resolveSkipVote(roomCode, pass);
-    }
-
-    return { success: true, state: "pending", accept, reject, needed, current };
+    return { success: false, state: "failed", error: "当前已有跳过投票在进行中，请输入 accept 同意或 reject 拒绝" };
   }
 
   // 只有一个人，直接跳过

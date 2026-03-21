@@ -897,6 +897,26 @@ export function setupPoemSnakeSocket(
 
         // 如果回答正确，通知所有玩家
         if (result.correct) {
+          // 如果房间此时正在进行跳过投票，则取消它并播报
+          if (skipVoteTimers.has(data.roomCode)) {
+            clearTimeout(skipVoteTimers.get(data.roomCode)!);
+            skipVoteTimers.delete(data.roomCode);
+
+            const cancelMsg = `玩家 ${user.username} 回答正确，当前的跳过投票已取消。`;
+            for (const player of room.players) {
+              io.to(`user_${player.uid}`).emit("room_chat_message", {
+                type: "system",
+                message: {
+                  id: `skip_vote_start_${Date.now()}_${uid}`,
+                  userId: "system",
+                  username: "系统",
+                  message: cancelMsg,
+                  timestamp: new Date().toISOString(),
+                },
+              });
+            }
+          }
+
           // 重新获取房间状态（因为 submitAnswer 可能已经更新了 currentRound）
           const updatedRoom = matchmaking.getRoom(data.roomCode);
           if (!updatedRoom) {
@@ -1010,7 +1030,7 @@ export function setupPoemSnakeSocket(
 
       // 投票进行中（发起投票）
       if (vote.state === "pending") {
-        const msg = `${user.username} 发起跳过投票，请在 10 秒内输入 skip 同意跳过或输入 reject 拒绝跳过。`;
+        const msg = `${user.username} 发起跳过投票，请在 10 秒内输入 accept 同意跳过或输入 reject 拒绝跳过。`;
         for (const player of room.players) {
           io.to(`user_${player.uid}`).emit("room_chat_message", {
             type: "system",

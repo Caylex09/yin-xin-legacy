@@ -608,11 +608,14 @@ export function PoemSnakeRoomPage() {
 
     // 检查是否是跳过相关操作
     if (answer === "skip") {
-      // 如果有投票在进行中，参与投票；否则发起投票
+      socketRef.current.emit("room_request_skip", { roomCode });
+      setCurrentAnswer("");
+      return;
+    }
+
+    if (answer === "accept") {
       if (skipRequested) {
         socketRef.current.emit("room_accept_skip", { roomCode });
-      } else {
-        socketRef.current.emit("room_request_skip", { roomCode });
       }
       setCurrentAnswer("");
       return;

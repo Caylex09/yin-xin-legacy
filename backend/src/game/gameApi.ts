@@ -12,6 +12,22 @@ function isPunctuation(char: string | undefined): boolean {
   if (!char) return true; // undefined (字符串首尾之外) 视为边界
   return PUNCTUATION_SET.has(char) || /\s/.test(char);
 }
+
+// 辅助：从一段文本中提取包含高亮字符的那一句（以句号、问号、感叹号、分号为界，保留末尾标点）
+export function extractSentence(fullText: string, highlightedChar: string): string {
+  if (!fullText || !highlightedChar || !fullText.includes(highlightedChar)) {
+    return fullText;
+  }
+  // 按照句末标点分割，保留标点符号在句子末尾
+  const splitRegex = new RegExp(`(?<=[${OK_ENDING.join("")}])`);
+  const sentences = fullText.split(splitRegex);
+  for (const segment of sentences) {
+    if (segment.includes(highlightedChar)) {
+      return segment.trim();
+    }
+  }
+  return fullText;
+}
 // MeiliSearch客户端
 const MEILI_HOST = process.env.MEILI_HOST || "http://127.0.0.1:7700";
 const MEILI_API_KEY = process.env.MEILI_API_KEY || "";

@@ -1,5 +1,5 @@
 // Poem Snake 游戏专用状态和逻辑
-import { VERDICT, VERDICT_TEXT, getPoem, searchPoem, clearMark, PUNCTUATION, judge, OK_ENDING } from "../gameApi";
+import { VERDICT, VERDICT_TEXT, getPoem, searchPoem, clearMark, PUNCTUATION, judge, OK_ENDING, extractSentence } from "../gameApi";
 import axios from "axios";
 import { load } from "cheerio";
 import { getDb } from "../../db";
@@ -552,6 +552,8 @@ export async function checkPoem(poem: string): Promise<{ verdict: number; data: 
             const ticketContent = `checkPoem 调用了 "${poem}"，在古诗文网搜到了。\n\n结果：\n标题：${gushiwenResult.data[0]}\n作者：${gushiwenResult.data[1]}\n匹配句：${gushiwenResult.data[2]}`;
             await createTicket("修复诗文", ticketContent);
 
+            const extractedGushiwen = extractSentence(gushiwenResult.data[2], highlightedChar);
+
             console.log("[poem-snake] GUSHIWEN_FOUND", {
                 ...debugBase,
                 gushiwenResult: gushiwenResult.data,
@@ -559,7 +561,7 @@ export async function checkPoem(poem: string): Promise<{ verdict: number; data: 
 
             return {
                 verdict: VERDICT.CORRECT,
-                data: gushiwenResult.data,
+                data: [gushiwenResult.data[0], gushiwenResult.data[1], extractedGushiwen],
             };
         } else {
             // 古诗文网也搜不到或超时，返回 NOT_FOUND
@@ -615,10 +617,12 @@ export async function checkPoem(poem: string): Promise<{ verdict: number; data: 
     });
 
     // 成功找到匹配的诗句
+    const extractedSentence = extractSentence(searchResult.matchedLine, highlightedChar);
+
     return {
         verdict: VERDICT.CORRECT,
-        // data[0] = 标题，data[1] = 【朝代·姓名】，data[2] = 匹配到的整句
-        data: [searchResult.title, searchResult.authorDisplay, searchResult.matchedLine],
+        // data[0] = 标题，data[1] = 【朝代·姓名】，data[2] = 提取的句子
+        data: [searchResult.title, searchResult.authorDisplay, extractedSentence],
     };
 }
 
