@@ -1,9 +1,9 @@
 // import React from "react";
-import { Link } from "react-router-dom";
-import { API_BASE } from "../config";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { formatDate } from "../utils/format";
-import { getToken, fetchProfile, type ProfileWithRole } from "../auth";
+import { Link, useSearchParams } from "react-router-dom";
+import { API_BASE } from "../../config";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { formatDate } from "../../utils/format";
+import { getToken, fetchProfile, type ProfileWithRole } from "../../auth";
 import { useCallback, useEffect, useState } from "react";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -18,32 +18,65 @@ export function TicketListPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("open");
   const [profile, setProfile] = useState<ProfileWithRole | null>(null);
+  const [params, setParams] = useSearchParams();
+  const pageParam = Math.max(1, parseInt(params.get("page") || "1", 10));
+  const statusParam = params.has("status") ? params.get("status") || "" : "open";
+  const statusFilter = statusParam;
+  const [totalPages, setTotalPages] = useState(1);
+
+  const setStatusFilter = (st: string) => {
+    const newParams = new URLSearchParams(params);
+    if (st) {
+      newParams.set("status", st);
+    } else {
+      newParams.set("status", "");
+    }
+    newParams.set("page", "1");
+    setParams(newParams);
+  };
+
+  const goPage = (np: number) => {
+    if (np < 1) np = 1;
+    if (np > totalPages) np = totalPages;
+    const newParams = new URLSearchParams(params);
+    newParams.set("page", String(np));
+    setParams(newParams);
+  };
 
   useEffect(() => {
     fetchProfile(API_BASE).then((p) => setProfile(p)).catch(() => setProfile(null));
   }, []);
 
-  const loadTickets = useCallback(async () => {
+
+
+  const loadTickets = useCallback(async (currentPage = 1, currentStatus = "") => {
     setLoading(true);
     setError("");
     try {
-      const url = statusFilter ? `${API_BASE}/tickets?status=${statusFilter}` : `${API_BASE}/tickets`;
+      const qs = new URLSearchParams({ page: currentPage.toString(), limit: "20" });
+      if (currentStatus) qs.append("status", currentStatus);
+      const url = `${API_BASE}/tickets?${qs.toString()}`;
       const resp = await fetch(url);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-      setTickets(data);
+      if (data.items) {
+        setTickets(data.items);
+        setTotalPages(data.totalPages || 1);
+      } else {
+        setTickets(data);
+        setTotalPages(1);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, []);
 
   useEffect(() => {
-    loadTickets();
-  }, [loadTickets]);
+    loadTickets(pageParam, statusParam);
+  }, [loadTickets, pageParam, statusParam]);
 
   return (
     <>
@@ -140,6 +173,19 @@ export function TicketListPage() {
               ))}
             </div>
           )}
+
+          <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+            <button className="btn ghost" disabled={pageParam <= 1} onClick={() => goPage(pageParam - 1)}>
+              上一页
+            </button>
+            <span className="muted">
+              第 {pageParam} / {totalPages} 页
+            </span>
+            <button className="btn ghost" disabled={pageParam >= totalPages} onClick={() => goPage(pageParam + 1)}>
+              下一页
+            </button>
+          </div>
+
           <div style={{ marginTop: 16 }}>
             <Link className="btn" to="/ticket/new">
               提交新工单

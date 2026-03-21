@@ -1,20 +1,20 @@
 // import React from "react";
 import { useNavigate } from "react-router-dom";
-import { API_BASE } from "../config";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { MarkdownRenderer } from "../components/MarkdownRenderer";
-import { getToken } from "../auth";
+import { API_BASE } from "../../config";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { MarkdownRenderer } from "../../components/MarkdownRenderer";
+import { getToken } from "../../auth";
 import { useState } from "react";
 
-export function AnnouncementNewPage() {
+export function TicketNewPage() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ title: "", content: "" });
 
-  usePageTitle("发布新公告");
+  usePageTitle("提交新工单");
 
-  const saveAnnouncement = async () => {
+  const saveTicket = async () => {
     if (!form.title.trim() || !form.content.trim()) {
       setError("标题和内容必填");
       return;
@@ -27,14 +27,14 @@ export function AnnouncementNewPage() {
     setSaving(true);
     setError("");
     try {
-      const resp = await fetch(`${API_BASE}/announcements`, {
+      const resp = await fetch(`${API_BASE}/tickets`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ title: form.title, content: form.content }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-      navigate(`/announcement/${data.id}`);
+      navigate(`/ticket/${data.id}`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -45,8 +45,8 @@ export function AnnouncementNewPage() {
   return (
     <>
       <section className="hero">
-        <h1>发布新公告</h1>
-        <p>创建一条新的公告</p>
+        <h1>提交新工单</h1>
+        <p>申请修改、报告问题</p>
       </section>
       <section className="results">
         <div className="result-list">
@@ -64,7 +64,7 @@ export function AnnouncementNewPage() {
           <div>
             <label style={{ display: "block", marginBottom: 8, fontWeight: 500 }}>内容（支持 Markdown 和 LaTeX 数学公式）</label>
             <textarea
-              placeholder="内容（支持 Markdown 和 LaTeX 数学公式）&#10;例如：&#10;- 行内公式：$E = mc^2$&#10;- 块级公式：$$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}$$"
+              placeholder="详细描述你的申请或问题（支持 Markdown 和 LaTeX 数学公式）&#10;例如：&#10;- 行内公式：$E = mc^2$&#10;- 块级公式：$$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}$$"
               value={form.content}
               onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
               style={{
@@ -92,10 +92,10 @@ export function AnnouncementNewPage() {
             </div>
           )}
           <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-            <button className="btn" onClick={saveAnnouncement} disabled={saving}>
-              {saving ? "发布中..." : "发布公告"}
+            <button className="btn" onClick={saveTicket} disabled={saving}>
+              {saving ? "提交中..." : "提交工单"}
             </button>
-            <button className="btn ghost" onClick={() => navigate("/announcement")}>
+            <button className="btn ghost" onClick={() => navigate("/ticket")}>
               取消
             </button>
           </div>

@@ -47,6 +47,55 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
+app.get("/api/github/commits", async (req, res) => {
+  try {
+    const repo = process.env.GITHUB_REPO || "Caylex09/yin-xin";
+    const pat = process.env.GITHUB_PAT;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    const headers: Record<string, string> = {
+      "User-Agent": "YinXin-App",
+      "Accept": "application/vnd.github.v3+json",
+    };
+    if (pat) {
+      headers["Authorization"] = `token ${pat}`;
+    }
+    const resp = await fetch(`https://api.github.com/repos/${repo}/commits?page=${page}&per_page=${limit}`, { headers });
+    if (!resp.ok) {
+      throw new Error(`GitHub API error: ${resp.status} ${resp.statusText}`);
+    }
+    const data = await resp.json();
+
+    // GitHub API headers often have "link" headers to inform us about total pages, 
+    // but extracting that might be brittle. We can just send items back.
+    // However, to keep it consistent with the frontend, let's wrap it.
+    // A simple heuristic for GitHub: If data length equals limit, there's likely a next page.
+    let totalPages = page;
+    const linkHeader = resp.headers.get("Link");
+    if (linkHeader) {
+      // e.g. <https://api.github.com/repositories/123/commits?page=5>; rel="last"
+      const match = linkHeader.match(/page=(\d+)[^>]*>;\s*rel="last"/);
+      if (match) {
+        totalPages = parseInt(match[1]);
+      } else if (linkHeader.includes('rel="next"')) {
+        totalPages = page + 1;
+      }
+    } else if (data.length === limit) {
+      totalPages = page + 1;
+    }
+
+    res.json({
+      items: data,
+      page,
+      totalPages,
+      total: totalPages * limit // rough estimate
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || "Failed to fetch commits" });
+  }
+});
+
 app.get("/api/stats/summary", async (_req, res) => {
   try {
     const stats = await client.getStats();

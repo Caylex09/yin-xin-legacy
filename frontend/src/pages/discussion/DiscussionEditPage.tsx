@@ -1,15 +1,15 @@
 // import React from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { API_BASE } from "../config";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { MarkdownRenderer } from "../components/MarkdownRenderer";
-import { getToken } from "../auth";
+import { API_BASE } from "../../config";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { MarkdownRenderer } from "../../components/MarkdownRenderer";
+import { getToken } from "../../auth";
 import { useEffect, useState } from "react";
 
-export function TicketEditPage() {
+export function DiscussionEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [ticket, setTicket] = useState<any>(null);
+  const [discussion, setDiscussion] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -19,21 +19,21 @@ export function TicketEditPage() {
     if (!id) return;
     setLoading(true);
     setError("");
-    fetch(`${API_BASE}/tickets/${id}`)
+    fetch(`${API_BASE}/discussions/${id}`)
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
         return d;
       })
       .then((data) => {
-        setTicket(data);
+        setDiscussion(data);
         setForm({ title: data.title, content: data.content });
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
   }, [id]);
 
-  const saveTicket = async () => {
+  const saveDiscussion = async () => {
     if (!form.title.trim() || !form.content.trim()) {
       setError("标题和内容必填");
       return;
@@ -46,14 +46,14 @@ export function TicketEditPage() {
     setSaving(true);
     setError("");
     try {
-      const resp = await fetch(`${API_BASE}/tickets/${id}`, {
+      const resp = await fetch(`${API_BASE}/discussions/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ title: form.title, content: form.content }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-      navigate(`/ticket/${id}`);
+      navigate(`/discussion/${id}`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -61,13 +61,13 @@ export function TicketEditPage() {
     }
   };
 
-  usePageTitle(ticket ? `编辑：${ticket.title}` : "编辑工单");
+  usePageTitle(discussion ? `编辑：${discussion.title}` : "编辑讨论");
 
   if (loading) {
     return (
       <>
         <section className="hero">
-          <h1>编辑工单</h1>
+          <h1>编辑讨论</h1>
         </section>
         <section className="results">
           <div className="result-list">
@@ -78,18 +78,18 @@ export function TicketEditPage() {
     );
   }
 
-  if (error && !ticket) {
+  if (error && !discussion) {
     return (
       <>
         <section className="hero">
-          <h1>编辑工单</h1>
+          <h1>编辑讨论</h1>
         </section>
         <section className="results">
           <div className="result-list">
             <div className="muted">{error}</div>
             <div style={{ marginTop: 12 }}>
-              <Link className="btn ghost" to="/ticket">
-                返回工单列表
+              <Link className="btn ghost" to="/discussion">
+                返回讨论列表
               </Link>
             </div>
           </div>
@@ -101,8 +101,8 @@ export function TicketEditPage() {
   return (
     <>
       <section className="hero">
-        <h1>编辑工单</h1>
-        <p>{ticket?.title}</p>
+        <h1>编辑讨论</h1>
+        <p>{discussion?.title}</p>
       </section>
       <section className="results">
         <div className="result-list">
@@ -148,10 +148,10 @@ export function TicketEditPage() {
             </div>
           )}
           <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-            <button className="btn" onClick={saveTicket} disabled={saving}>
+            <button className="btn" onClick={saveDiscussion} disabled={saving}>
               {saving ? "保存中..." : "保存修改"}
             </button>
-            <Link className="btn ghost" to={`/ticket/${id}`}>
+            <Link className="btn ghost" to={`/discussion/${id}`}>
               取消
             </Link>
           </div>

@@ -7,18 +7,18 @@ import { initAuthUI, login, register, sendCode, fetchProfile, getToken, clearTok
 import type { ProfileWithRole } from "./auth";
 import { usePageTitle } from "./hooks/usePageTitle";
 import { Layout } from "./components/Layout";
-import { AnnouncementListPage } from "./pages/AnnouncementListPage";
-import { AnnouncementDetailPage } from "./pages/AnnouncementDetailPage";
-import { AnnouncementEditPage } from "./pages/AnnouncementEditPage";
-import { AnnouncementNewPage } from "./pages/AnnouncementNewPage";
-import { DiscussionListPage } from "./pages/DiscussionListPage";
-import { DiscussionDetailPage } from "./pages/DiscussionDetailPage";
-import { DiscussionNewPage } from "./pages/DiscussionNewPage";
-import { DiscussionEditPage } from "./pages/DiscussionEditPage";
-import { TicketListPage } from "./pages/TicketListPage";
-import { TicketDetailPage } from "./pages/TicketDetailPage";
-import { TicketNewPage } from "./pages/TicketNewPage";
-import { TicketEditPage } from "./pages/TicketEditPage";
+import { AnnouncementListPage } from "./pages/announcement/AnnouncementListPage";
+import { AnnouncementDetailPage } from "./pages/announcement/AnnouncementDetailPage";
+import { AnnouncementEditPage } from "./pages/announcement/AnnouncementEditPage";
+import { AnnouncementNewPage } from "./pages/announcement/AnnouncementNewPage";
+import { DiscussionListPage } from "./pages/discussion/DiscussionListPage";
+import { DiscussionDetailPage } from "./pages/discussion/DiscussionDetailPage";
+import { DiscussionNewPage } from "./pages/discussion/DiscussionNewPage";
+import { DiscussionEditPage } from "./pages/discussion/DiscussionEditPage";
+import { TicketListPage } from "./pages/ticket/TicketListPage";
+import { TicketDetailPage } from "./pages/ticket/TicketDetailPage";
+import { TicketNewPage } from "./pages/ticket/TicketNewPage";
+import { TicketEditPage } from "./pages/ticket/TicketEditPage";
 import { Home } from "./pages/Home";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -39,6 +39,8 @@ import { PoemSnakeRoomPage } from "./pages/game/PoemSnakeRoomPage";
 
 function OnlinePage() {
   usePageTitle("在线用户");
+  const [params, setParams] = useSearchParams();
+  const pageParam = Math.max(1, parseInt(params.get("page") || "1", 10));
   const [online, setOnline] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -106,28 +108,53 @@ function OnlinePage() {
           {loading && <div className="muted">加载中...</div>}
           {error && <div className="muted">请求失败：{error}</div>}
           {!loading && !error && online.length === 0 && <div className="muted">暂无在线用户</div>}
-          {!loading && !error && online.length > 0 && (
-            <ul className="list online-list">
-              {online.map((u) => (
-                <li key={u.uid} className="online-list-item">
-                  <img
-                    src={avatars[u.uid] || "/avatar/yinxin.png"}
-                    alt={u.username || `用户${u.uid}`}
-                    className="online-avatar"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/avatar/yinxin.png";
-                    }}
-                  />
-                  <div className="online-user-info">
-                    <Link className="link-blue" to={`/profile/${u.uid}`}>
-                      {u.username || `用户${u.uid}`}
-                    </Link>
-                  </div>
-                  <span className="online-time">{new Date(u.last).toLocaleTimeString()}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          {!loading && !error && online.length > 0 && (() => {
+            const pageSize = 20;
+            const totalPages = Math.max(1, Math.ceil(online.length / pageSize));
+            const currentData = online.slice((pageParam - 1) * pageSize, pageParam * pageSize);
+
+            const goPage = (np: number) => {
+              if (np < 1) np = 1;
+              if (np > totalPages) np = totalPages;
+              setParams(new URLSearchParams({ page: String(np) }));
+            };
+
+            return (
+              <>
+                <ul className="list online-list">
+                  {currentData.map((u) => (
+                    <li key={u.uid} className="online-list-item">
+                      <img
+                        src={avatars[u.uid] || "/avatar/yinxin.png"}
+                        alt={u.username || `用户${u.uid}`}
+                        className="online-avatar"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/avatar/yinxin.png";
+                        }}
+                      />
+                      <div className="online-user-info">
+                        <Link className="link-blue" to={`/profile/${u.uid}`}>
+                          {u.username || `用户${u.uid}`}
+                        </Link>
+                      </div>
+                      <span className="online-time">{new Date(u.last).toLocaleTimeString()}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+                  <button className="btn ghost" disabled={pageParam <= 1} onClick={() => goPage(pageParam - 1)}>
+                    上一页
+                  </button>
+                  <span className="muted">
+                    第 {pageParam} / {totalPages} 页
+                  </span>
+                  <button className="btn ghost" disabled={pageParam >= totalPages} onClick={() => goPage(pageParam + 1)}>
+                    下一页
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </section>
     </>
@@ -888,6 +915,7 @@ function App() {
           <Route path="/game/poem-snake" element={<PoemSnakePage />} />
           <Route path="/game/poem-snake/room/:roomCode" element={<PoemSnakeRoomPage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/changelog" element={<ChangelogPage />} />
           <Route path="/profile/:uid" element={<ProfilePage />} />
           <Route path="/profile/:uid/edit" element={<ProfileEditPage />} />
         </Routes>
@@ -1334,6 +1362,94 @@ function ProfileEditPage() {
   );
 }
 
+function ChangelogPage() {
+  usePageTitle("更新日志");
+  const [params, setParams] = useSearchParams();
+  const pageParam = Math.max(Number(params.get("page") || "1"), 1);
+  const [commits, setCommits] = useState<any[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const resp = await fetch(`${API_BASE}/github/commits?page=${pageParam}&limit=20`);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+        if (data.items) {
+          setCommits(data.items);
+          setTotalPages(data.totalPages || 1);
+        } else {
+          setCommits(data || []);
+          setTotalPages(1);
+        }
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [pageParam]);
+
+  const goPage = (p: number) => {
+    const np = Math.min(Math.max(p, 1), totalPages || 1);
+    setParams(new URLSearchParams({ page: String(np) }));
+  };
+
+  return (
+    <>
+      <section className="hero">
+        <h1>更新日志</h1>
+        <p>本项目的所有 Commit 记录，由新到旧排序</p>
+      </section>
+      <section className="results">
+        <div className="result-list container">
+          {loading && <div className="muted" style={{ padding: "0 1rem" }}>加载中...</div>}
+          {error && <div className="muted" style={{ padding: "0 1rem" }}>加载失败：{error}</div>}
+          {!loading && !error && commits.length === 0 && <div className="muted" style={{ padding: "0 1rem" }}>暂无更新日志</div>}
+          {!loading && !error && commits.length > 0 && (
+            <div className="hit-list" style={{ padding: "0 1rem" }}>
+              {commits.map((c: any) => (
+                <article className="hit" key={c.sha}>
+                  <div className="hit-title">
+                    <a href={c.html_url} target="_blank" rel="noreferrer">
+                      {c.commit.message.split('\n')[0]}
+                    </a>
+                  </div>
+                  <div className="hit-meta">
+                    <span className="muted small" style={{ marginRight: '1rem' }}>{c.commit.author.name}</span>
+                    <span className="muted small">{new Date(c.commit.author.date).toLocaleString()}</span>
+                  </div>
+                  <div className="muted small" style={{ marginTop: '0.5rem', whiteSpace: 'pre-wrap' }}>
+                    {c.commit.message.split('\n').slice(1).join('\n').trim()}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", padding: "0 1rem" }}>
+            <button className="btn ghost" disabled={pageParam <= 1} onClick={() => goPage(pageParam - 1)}>
+              上一页
+            </button>
+            <span className="muted">
+              第 {pageParam} / {totalPages} 页
+            </span>
+            <button className="btn ghost" disabled={pageParam >= totalPages} onClick={() => goPage(pageParam + 1)}>
+              下一页
+            </button>
+          </div>
+
+        </div>
+      </section>
+    </>
+  );
+}
+
 function AboutPage() {
   usePageTitle("关于我们");
   const [admins, setAdmins] = useState<any[]>([]);
@@ -1403,7 +1519,7 @@ function GamesPage() {
   usePageTitle("游戏列表");
   const games = [
     {
-      title: "古诗（）谜",
+      title: "循花令",
       link: "/game/poem-snake",
       desc: "公屏随机古诗文，你需输入含高亮字的一句古诗词，在线人数为 x 获得 x 分；1 分可跳过一个字；支持 Ctrl+Enter 提交。支持 1v1 随机匹配对手和自建房与好友娱乐。1v1 匹配得分更高！",
       note: "灵感来源于 https://github.com/poem-snake/poem-snake",

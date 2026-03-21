@@ -1,39 +1,20 @@
 // import React from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { API_BASE } from "../config";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { MarkdownRenderer } from "../components/MarkdownRenderer";
-import { getToken } from "../auth";
-import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../../config";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { MarkdownRenderer } from "../../components/MarkdownRenderer";
+import { getToken } from "../../auth";
+import { useState } from "react";
 
-export function AnnouncementEditPage() {
-  const { id } = useParams<{ id: string }>();
+export function DiscussionNewPage() {
   const navigate = useNavigate();
-  const [announcement, setAnnouncement] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({ title: "", content: "" });
 
-  useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    setError("");
-    fetch(`${API_BASE}/announcements/${id}`)
-      .then(async (r) => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-        return d;
-      })
-      .then((data) => {
-        setAnnouncement(data);
-        setForm({ title: data.title, content: data.content });
-      })
-      .catch((e) => setError((e as Error).message))
-      .finally(() => setLoading(false));
-  }, [id]);
+  usePageTitle("发布新讨论");
 
-  const saveAnnouncement = async () => {
+  const saveDiscussion = async () => {
     if (!form.title.trim() || !form.content.trim()) {
       setError("标题和内容必填");
       return;
@@ -46,14 +27,14 @@ export function AnnouncementEditPage() {
     setSaving(true);
     setError("");
     try {
-      const resp = await fetch(`${API_BASE}/announcements/${id}`, {
-        method: "PUT",
+      const resp = await fetch(`${API_BASE}/discussions`, {
+        method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ title: form.title, content: form.content }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-      navigate(`/announcement/${id}`);
+      navigate(`/discussion/${data.id}`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -61,48 +42,11 @@ export function AnnouncementEditPage() {
     }
   };
 
-  usePageTitle(announcement ? `编辑：${announcement.title}` : "编辑公告");
-
-  if (loading) {
-    return (
-      <>
-        <section className="hero">
-          <h1>编辑公告</h1>
-        </section>
-        <section className="results">
-          <div className="result-list">
-            <div className="muted">加载中...</div>
-          </div>
-        </section>
-      </>
-    );
-  }
-
-  if (error && !announcement) {
-    return (
-      <>
-        <section className="hero">
-          <h1>编辑公告</h1>
-        </section>
-        <section className="results">
-          <div className="result-list">
-            <div className="muted">{error}</div>
-            <div style={{ marginTop: 12 }}>
-              <Link className="btn ghost" to="/announcement">
-                返回公告列表
-              </Link>
-            </div>
-          </div>
-        </section>
-      </>
-    );
-  }
-
   return (
     <>
       <section className="hero">
-        <h1>编辑公告</h1>
-        <p>{announcement?.title}</p>
+        <h1>发布新讨论</h1>
+        <p>创建一条新的讨论</p>
       </section>
       <section className="results">
         <div className="result-list">
@@ -148,12 +92,12 @@ export function AnnouncementEditPage() {
             </div>
           )}
           <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-            <button className="btn" onClick={saveAnnouncement} disabled={saving}>
-              {saving ? "保存中..." : "保存修改"}
+            <button className="btn" onClick={saveDiscussion} disabled={saving}>
+              {saving ? "发布中..." : "发布讨论"}
             </button>
-            <Link className="btn ghost" to={`/announcement/${id}`}>
+            <button className="btn ghost" onClick={() => navigate("/discussion")}>
               取消
-            </Link>
+            </button>
           </div>
         </div>
       </section>

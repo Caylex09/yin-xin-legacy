@@ -11,36 +11,78 @@ export function createTicketApiRouter(): Router {
     try {
       const status = req.query.status as string | undefined; // 'open', 'closed', 'resolved', 'rejected', 'duplicate'
       const validStatuses = ["open", "resolved", "rejected", "duplicate"];
-      let rows;
-      if (status && validStatuses.includes(status)) {
-        rows = getDb()
-          .prepare(
-            `SELECT t.id, t.title, t.content, t.created_by, t.created_at, t.updated_at, t.status, t.closed_by, t.closed_at,
-                    u.username as creator_username, u.avatar as creator_avatar,
-                    cu.username as closer_username,
-                    (SELECT COUNT(*) FROM ticket_replies WHERE ticket_id = t.id AND deleted = 0) as reply_count
-             FROM tickets t
-             LEFT JOIN users u ON t.created_by = u.uid
-             LEFT JOIN users cu ON t.closed_by = cu.uid
-             WHERE t.status = ?
-             ORDER BY t.updated_at DESC`
-          )
-          .all(status);
+      const page = parseInt(req.query.page as string);
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const hasStatusFilter = status && validStatuses.includes(status);
+      const baseQuery = `
+        FROM tickets t
+        LEFT JOIN users u ON t.created_by = u.uid
+        LEFT JOIN users cu ON t.closed_by = cu.uid
+        ${hasStatusFilter ? "WHERE t.status = ?" : ""}
+      `;
+
+      const db = getDb();
+
+      if (!isNaN(page) && page > 0) {
+        const offset = (page - 1) * limit;
+        const totalRow = hasStatusFilter
+          ? db.prepare(`SELECT COUNT(*) as total ${baseQuery}`).get(status) as { total: number }
+          : db.prepare(`SELECT COUNT(*) as total ${baseQuery}`).get() as { total: number };
+
+        const rows = hasStatusFilter
+          ? db.prepare(`
+              SELECT t.id, t.title, t.content, t.created_by, t.created_at, t.updated_at, t.status, t.closed_by, t.closed_at,
+                     u.username as creator_username, u.avatar as creator_avatar,
+                     cu.username as closer_username,
+                     (SELECT COUNT(*) FROM ticket_replies WHERE ticket_id = t.id AND deleted = 0) as reply_count
+              ${baseQuery}
+              ORDER BY t.updated_at DESC
+              LIMIT ? OFFSET ?
+            `).all(status, limit, offset)
+          : db.prepare(`
+              SELECT t.id, t.title, t.content, t.created_by, t.created_at, t.updated_at, t.status, t.closed_by, t.closed_at,
+                     u.username as creator_username, u.avatar as creator_avatar,
+                     cu.username as closer_username,
+                     (SELECT COUNT(*) FROM ticket_replies WHERE ticket_id = t.id AND deleted = 0) as reply_count
+              ${baseQuery}
+              ORDER BY t.updated_at DESC
+              LIMIT ? OFFSET ?
+            `).all(limit, offset);
+
+        return res.json({
+          items: rows,
+          total: totalRow.total,
+          page,
+          totalPages: Math.ceil(totalRow.total / limit)
+        });
       } else {
-        rows = getDb()
-          .prepare(
-            `SELECT t.id, t.title, t.content, t.created_by, t.created_at, t.updated_at, t.status, t.closed_by, t.closed_at,
-                    u.username as creator_username, u.avatar as creator_avatar,
-                    cu.username as closer_username,
-                    (SELECT COUNT(*) FROM ticket_replies WHERE ticket_id = t.id AND deleted = 0) as reply_count
-             FROM tickets t
-             LEFT JOIN users u ON t.created_by = u.uid
-             LEFT JOIN users cu ON t.closed_by = cu.uid
-             ORDER BY t.updated_at DESC`
-          )
-          .all();
+        let rows;
+        if (hasStatusFilter) {
+          rows = db
+            .prepare(
+              `SELECT t.id, t.title, t.content, t.created_by, t.created_at, t.updated_at, t.status, t.closed_by, t.closed_at,
+                      u.username as creator_username, u.avatar as creator_avatar,
+                      cu.username as closer_username,
+                      (SELECT COUNT(*) FROM ticket_replies WHERE ticket_id = t.id AND deleted = 0) as reply_count
+               ${baseQuery}
+               ORDER BY t.updated_at DESC`
+            )
+            .all(status);
+        } else {
+          rows = db
+            .prepare(
+              `SELECT t.id, t.title, t.content, t.created_by, t.created_at, t.updated_at, t.status, t.closed_by, t.closed_at,
+                      u.username as creator_username, u.avatar as creator_avatar,
+                      cu.username as closer_username,
+                      (SELECT COUNT(*) FROM ticket_replies WHERE ticket_id = t.id AND deleted = 0) as reply_count
+               ${baseQuery}
+               ORDER BY t.updated_at DESC`
+            )
+            .all();
+        }
+        res.json(rows);
       }
-      res.json(rows);
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
@@ -109,7 +151,7 @@ export function createTicketApiRouter(): Router {
         status: string;
       } | undefined;
       if (!row) return res.status(404).json({ error: "工单不存在" });
-      
+
       // 检查权限：创建者或 superadmin 可以编辑
       const auth = req.headers.authorization || "";
       const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";

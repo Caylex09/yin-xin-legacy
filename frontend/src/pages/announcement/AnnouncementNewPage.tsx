@@ -1,20 +1,20 @@
 // import React from "react";
 import { useNavigate } from "react-router-dom";
-import { API_BASE } from "../config";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { MarkdownRenderer } from "../components/MarkdownRenderer";
-import { getToken } from "../auth";
+import { API_BASE } from "../../config";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { MarkdownRenderer } from "../../components/MarkdownRenderer";
+import { getToken } from "../../auth";
 import { useState } from "react";
 
-export function DiscussionNewPage() {
+export function AnnouncementNewPage() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ title: "", content: "" });
 
-  usePageTitle("发布新讨论");
+  usePageTitle("发布新公告");
 
-  const saveDiscussion = async () => {
+  const saveAnnouncement = async () => {
     if (!form.title.trim() || !form.content.trim()) {
       setError("标题和内容必填");
       return;
@@ -27,14 +27,14 @@ export function DiscussionNewPage() {
     setSaving(true);
     setError("");
     try {
-      const resp = await fetch(`${API_BASE}/discussions`, {
+      const resp = await fetch(`${API_BASE}/announcements`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ title: form.title, content: form.content }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-      navigate(`/discussion/${data.id}`);
+      navigate(`/announcement/${data.id}`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -45,8 +45,8 @@ export function DiscussionNewPage() {
   return (
     <>
       <section className="hero">
-        <h1>发布新讨论</h1>
-        <p>创建一条新的讨论</p>
+        <h1>发布新公告</h1>
+        <p>创建一条新的公告</p>
       </section>
       <section className="results">
         <div className="result-list">
@@ -92,10 +92,10 @@ export function DiscussionNewPage() {
             </div>
           )}
           <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-            <button className="btn" onClick={saveDiscussion} disabled={saving}>
-              {saving ? "发布中..." : "发布讨论"}
+            <button className="btn" onClick={saveAnnouncement} disabled={saving}>
+              {saving ? "发布中..." : "发布公告"}
             </button>
-            <button className="btn ghost" onClick={() => navigate("/discussion")}>
+            <button className="btn ghost" onClick={() => navigate("/announcement")}>
               取消
             </button>
           </div>

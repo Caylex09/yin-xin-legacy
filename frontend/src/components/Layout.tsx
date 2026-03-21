@@ -35,6 +35,9 @@ export function Layout({ children }: React.PropsWithChildren) {
           <Link className="item" to="/about">
             <span className="label">关于我们</span>
           </Link>
+          <Link className="item" to="/changelog">
+            <span className="label">更新日志</span>
+          </Link>
         </nav>
         <div className="auth-actions" id="auth-actions"></div>
       </header>

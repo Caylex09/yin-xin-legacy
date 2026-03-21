@@ -10,18 +10,47 @@ export function createDiscussionApiRouter(): Router {
   router.get("/api/discussions", (req, res) => {
     try {
       const includeDeleted = req.query.includeDeleted === "1";
-      const rows = getDb()
-        .prepare(
-          `SELECT d.id, d.title, d.content, d.created_by, d.created_at, d.updated_at, d.deleted,
-                  u.username as creator_username, u.avatar as creator_avatar,
-                  (SELECT COUNT(*) FROM discussion_replies WHERE discussion_id = d.id AND deleted = 0) as reply_count
-           FROM discussions d
-           LEFT JOIN users u ON d.created_by = u.uid
-           ${includeDeleted ? "" : "WHERE d.deleted = 0"}
-           ORDER BY d.updated_at DESC`
-        )
-        .all();
-      res.json(rows);
+      const page = parseInt(req.query.page as string);
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const baseQuery = `
+        FROM discussions d
+        LEFT JOIN users u ON d.created_by = u.uid
+        ${includeDeleted ? "" : "WHERE d.deleted = 0"}
+      `;
+
+      const db = getDb();
+
+      if (!isNaN(page) && page > 0) {
+        const offset = (page - 1) * limit;
+        const totalRow = db.prepare(`SELECT COUNT(*) as total ${baseQuery}`).get() as { total: number };
+        const rows = db.prepare(`
+          SELECT d.id, d.title, d.content, d.created_by, d.created_at, d.updated_at, d.deleted,
+                 u.username as creator_username, u.avatar as creator_avatar,
+                 (SELECT COUNT(*) FROM discussion_replies WHERE discussion_id = d.id AND deleted = 0) as reply_count
+          ${baseQuery}
+          ORDER BY d.updated_at DESC
+          LIMIT ? OFFSET ?
+        `).all(limit, offset);
+
+        return res.json({
+          items: rows,
+          total: totalRow.total,
+          page,
+          totalPages: Math.ceil(totalRow.total / limit)
+        });
+      } else {
+        const rows = db
+          .prepare(
+            `SELECT d.id, d.title, d.content, d.created_by, d.created_at, d.updated_at, d.deleted,
+                   u.username as creator_username, u.avatar as creator_avatar,
+                   (SELECT COUNT(*) FROM discussion_replies WHERE discussion_id = d.id AND deleted = 0) as reply_count
+             ${baseQuery}
+             ORDER BY d.updated_at DESC`
+          )
+          .all();
+        res.json(rows);
+      }
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
@@ -82,7 +111,7 @@ export function createDiscussionApiRouter(): Router {
       const db = getDb();
       const row = db.prepare("SELECT id, created_by FROM discussions WHERE id = ?").get(id) as { id: number; created_by: number } | undefined;
       if (!row) return res.status(404).json({ error: "讨论不存在" });
-      
+
       // 检查权限：创建者或 superadmin 可以编辑
       const auth = req.headers.authorization || "";
       const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -127,7 +156,7 @@ export function createDiscussionApiRouter(): Router {
       const db = getDb();
       const row = db.prepare("SELECT id, created_by FROM discussions WHERE id = ?").get(id) as { id: number; created_by: number } | undefined;
       if (!row) return res.status(404).json({ error: "讨论不存在" });
-      
+
       // 检查权限：创建者或 superadmin 可以删除
       const auth = req.headers.authorization || "";
       const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -217,7 +246,7 @@ export function createDiscussionApiRouter(): Router {
         .prepare("SELECT id, created_by, discussion_id FROM discussion_replies WHERE id = ? AND discussion_id = ?")
         .get(replyId, id) as { id: number; created_by: number; discussion_id: number } | undefined;
       if (!row) return res.status(404).json({ error: "回复不存在" });
-      
+
       // 检查权限：创建者或 superadmin 可以编辑
       const auth = req.headers.authorization || "";
       const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -261,7 +290,7 @@ export function createDiscussionApiRouter(): Router {
         .prepare("SELECT id, created_by, discussion_id FROM discussion_replies WHERE id = ? AND discussion_id = ?")
         .get(replyId, id) as { id: number; created_by: number; discussion_id: number } | undefined;
       if (!row) return res.status(404).json({ error: "回复不存在" });
-      
+
       // 检查权限：创建者或 superadmin 可以删除
       const auth = req.headers.authorization || "";
       const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";

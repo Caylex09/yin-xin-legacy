@@ -1,14 +1,14 @@
 // import React from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { API_BASE } from "../config";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { MarkdownRenderer } from "../components/MarkdownRenderer";
-import { formatDate } from "../utils/format";
-import { fetchProfile, getToken, type ProfileWithRole } from "../auth";
-import { useToast } from "../hooks/useToast";
-import { useConfirm } from "../hooks/useConfirm";
-import { Toast } from "../components/Toast";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { API_BASE } from "../../config";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { MarkdownRenderer } from "../../components/MarkdownRenderer";
+import { formatDate } from "../../utils/format";
+import { fetchProfile, getToken, type ProfileWithRole } from "../../auth";
+import { useToast } from "../../hooks/useToast";
+import { useConfirm } from "../../hooks/useConfirm";
+import { Toast } from "../../components/Toast";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useEffect, useState } from "react";
 
 export function AnnouncementDetailPage() {

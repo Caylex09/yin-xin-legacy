@@ -1,13 +1,13 @@
 // import React from "react";
-import { Link } from "react-router-dom";
-import { API_BASE } from "../config";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { formatDate } from "../utils/format";
-import { getToken } from "../auth";
-import { useToast } from "../hooks/useToast";
-import { useConfirm } from "../hooks/useConfirm";
-import { Toast } from "../components/Toast";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Link, useSearchParams } from "react-router-dom";
+import { API_BASE } from "../../config";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { formatDate } from "../../utils/format";
+import { getToken } from "../../auth";
+import { useToast } from "../../hooks/useToast";
+import { useConfirm } from "../../hooks/useConfirm";
+import { Toast } from "../../components/Toast";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useCallback, useEffect, useState } from "react";
 
 export function DiscussionListPage() {
@@ -15,17 +15,32 @@ export function DiscussionListPage() {
   const [discussions, setDiscussions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [params, setParams] = useSearchParams();
+  const pageParam = Math.max(1, parseInt(params.get("page") || "1", 10));
+  const [totalPages, setTotalPages] = useState(1);
   const { toast, showToast, hideToast } = useToast();
   const { confirm, showConfirm, hideConfirm } = useConfirm();
 
-  const loadDiscussions = useCallback(async () => {
+  const goPage = (np: number) => {
+    if (np < 1) np = 1;
+    if (np > totalPages) np = totalPages;
+    setParams(new URLSearchParams({ page: String(np) }));
+  };
+
+  const loadDiscussions = useCallback(async (currentPage = 1) => {
     setLoading(true);
     setError("");
     try {
-      const resp = await fetch(`${API_BASE}/discussions`);
+      const resp = await fetch(`${API_BASE}/discussions?page=${currentPage}&limit=20`);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-      setDiscussions(data);
+      if (data.items) {
+        setDiscussions(data.items);
+        setTotalPages(data.totalPages || 1);
+      } else {
+        setDiscussions(data);
+        setTotalPages(1);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -34,8 +49,8 @@ export function DiscussionListPage() {
   }, []);
 
   useEffect(() => {
-    loadDiscussions();
-  }, [loadDiscussions]);
+    loadDiscussions(pageParam);
+  }, [loadDiscussions, pageParam]);
 
   const deleteDiscussion = async (id: number) => {
     const token = getToken();
@@ -51,7 +66,7 @@ export function DiscussionListPage() {
         .then(async (resp) => {
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-          loadDiscussions();
+          loadDiscussions(pageParam);
           showToast("删除成功", "success");
         })
         .catch((e) => {
@@ -104,6 +119,19 @@ export function DiscussionListPage() {
               ))}
             </div>
           )}
+
+          <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+            <button className="btn ghost" disabled={pageParam <= 1} onClick={() => goPage(pageParam - 1)}>
+              上一页
+            </button>
+            <span className="muted">
+              第 {pageParam} / {totalPages} 页
+            </span>
+            <button className="btn ghost" disabled={pageParam >= totalPages} onClick={() => goPage(pageParam + 1)}>
+              下一页
+            </button>
+          </div>
+
           <div style={{ marginTop: 16 }}>
             <Link className="btn" to="/discussion/new">
               发布新讨论

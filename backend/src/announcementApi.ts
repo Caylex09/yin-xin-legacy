@@ -8,22 +8,56 @@ export function createAnnouncementApiRouter(): Router {
   router.get("/api/announcements", (req, res) => {
     try {
       const includeDeleted = req.query.includeDeleted === "1";
-      const rows = getDb()
-        .prepare(
-          `SELECT id, title, content, created_by, created_at, updated_at, deleted
-           FROM announcements
-           ${includeDeleted ? "" : "WHERE deleted = 0"}
-           ORDER BY created_at DESC`
-        )
-        .all();
-      // 在前端生成摘要，避免 SQL 复杂性
-      const summaries = rows.map((row: any) => ({
-        ...row,
-        summary: row.content && row.content.length > 200 
-          ? row.content.substring(0, 200) + "..." 
-          : row.content,
-      }));
-      res.json(summaries);
+      const page = parseInt(req.query.page as string);
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const baseQuery = `
+        FROM announcements
+        ${includeDeleted ? "" : "WHERE deleted = 0"}
+      `;
+
+      const db = getDb();
+
+      if (!isNaN(page) && page > 0) {
+        const offset = (page - 1) * limit;
+        const totalRow = db.prepare(`SELECT COUNT(*) as total ${baseQuery}`).get() as { total: number };
+        const rows = db.prepare(`
+          SELECT id, title, content, created_by, created_at, updated_at, deleted
+          ${baseQuery}
+          ORDER BY created_at DESC
+          LIMIT ? OFFSET ?
+        `).all(limit, offset);
+
+        const summaries = rows.map((row: any) => ({
+          ...row,
+          summary: row.content && row.content.length > 200
+            ? row.content.substring(0, 200) + "..."
+            : row.content,
+        }));
+
+        return res.json({
+          items: summaries,
+          total: totalRow.total,
+          page,
+          totalPages: Math.ceil(totalRow.total / limit)
+        });
+      } else {
+        const rows = db
+          .prepare(
+            `SELECT id, title, content, created_by, created_at, updated_at, deleted
+             ${baseQuery}
+             ORDER BY created_at DESC`
+          )
+          .all();
+        // 在前端生成摘要，避免 SQL 复杂性
+        const summaries = rows.map((row: any) => ({
+          ...row,
+          summary: row.content && row.content.length > 200
+            ? row.content.substring(0, 200) + "..."
+            : row.content,
+        }));
+        res.json(summaries);
+      }
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
     }
