@@ -222,7 +222,8 @@ export function setupPoemSnakeSocket(
       onlineUsers.set(uid, { username: user.username, last: Date.now() });
       gameOnlineUsers.set(uid, { username: user.username, last: Date.now() });
 
-      const result = await checkPoem(data.answer.trim());
+      const publicScreenPoem = getPublicScreenPoem();
+      const result = await checkPoem(data.answer.trim(), publicScreenPoem.content, publicScreenPoem.pos);
       const now = new Date().toISOString();
       const onlineCount = getPublicScreenOnlineCount();
 

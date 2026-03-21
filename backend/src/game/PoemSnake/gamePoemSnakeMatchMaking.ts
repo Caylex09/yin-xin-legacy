@@ -1,3 +1,4 @@
+import { checkPoem } from './gamePoemSnake';
 // 匹配和房间系统
 import { getDb } from "../../db";
 import { getPoem } from "../gameApi";
@@ -6,79 +7,7 @@ import crypto from "crypto";
 
 const PUNCTUATION = ["，", "？", "。", "！", "：", "、", "；"];
 
-// 检查诗句（用于匹配模式）
-async function checkPoemForMatch(poem: string, targetContent: string, targetPos: number): Promise<{ verdict: number; data: string[] }> {
-  const empty = ["", "", ""];
 
-  // 检查长度
-  const cleanPoem = clearMark(poem);
-  if (cleanPoem.length < 5 || cleanPoem.length >= 50) {
-    return { verdict: VERDICT.LENGTH_INVALID, data: empty };
-  }
-
-  // 检查是否包含高亮字符
-  if (targetPos >= targetContent.length) {
-    return { verdict: VERDICT.UNKNOWN, data: empty };
-    // return { verdict: VERDICT.NOT_FOUND, data: empty };
-  }
-
-  const highlightedChar = targetContent[targetPos];
-  if (!poem.includes(highlightedChar)) {
-    return { verdict: VERDICT.NO_HIGHLIGHTED_CHAR, data: empty };
-  }
-
-  // 检查是否是原诗
-  const contentClean = clearMark(targetContent);
-  const poemClean = clearMark(poem);
-  if (contentClean.includes(poemClean) || poemClean.includes(contentClean)) {
-    return { verdict: VERDICT.ORIGINAL_POEM, data: empty };
-  }
-
-  // 搜索诗句
-  const searchResult = await searchPoem(poem);
-  if (!searchResult) {
-    return { verdict: VERDICT.NOT_FOUND, data: empty };
-  }
-
-  // 检查是否是完整句子：如果用户输入的诗句是匹配到的完整句子的前缀（后面还有内容），则判定为半句
-  const matchedLineClean = clearMark(searchResult.matchedLine);
-  const matchedLineOriginal = searchResult.matchedLine;
-
-  // 如果匹配到的完整句子比用户输入长，且用户输入是完整句子的前缀，则判定为半句
-  if (matchedLineClean.length > poemClean.length && matchedLineClean.startsWith(poemClean)) {
-    // 检查匹配到的完整句子在用户输入之后是否还有非标点符号的内容
-    const remaining = matchedLineClean.slice(poemClean.length);
-    const remainingWithoutPunct = remaining.replace(/[，。！？、；：""''（）《》〈〉……—…·\s]/g, "");
-    if (remainingWithoutPunct.length > 0) {
-      // 用户输入的是半句，判定为不正确
-      return { verdict: VERDICT.INCOMPLETE, data: empty };
-    }
-  }
-
-  // 特殊情况：如果用户输入以句号结尾，但匹配到的完整句子在句号之后还有内容，也判定为半句
-  // 例如：用户输入"窗含西岭千秋雪。"，完整句子是"窗含西岭千秋雪，门泊东吴万里船。"
-  const poemOriginal = poem.trim();
-  if (poemOriginal.endsWith("。") && matchedLineOriginal.length > poemOriginal.length) {
-    // 检查完整句子在用户输入之后是否还有非标点符号的内容
-    const remainingOriginal = matchedLineOriginal.slice(poemOriginal.length);
-    const remainingOriginalWithoutPunct = remainingOriginal.replace(/[，。！？、；：""''（）《》〈〉……—…·\s]/g, "");
-    if (remainingOriginalWithoutPunct.length > 0) {
-      // 用户输入的是半句，判定为不正确
-      return { verdict: VERDICT.INCOMPLETE, data: empty };
-    }
-  }
-
-  // 成功找到匹配的诗句
-  // 提取只包含高亮字符的那一句（以句号、问号、感叹号、分号为界）
-  const extractedSentence = extractSentence(searchResult.matchedLine, highlightedChar);
-
-  return {
-    verdict: VERDICT.CORRECT,
-    data: [searchResult.title, searchResult.authorDisplay, extractedSentence],
-  };
-}
-
-// 匹配队列
 const matchmakingQueue: number[] = [];
 
 // 房间提交记录
@@ -372,7 +301,7 @@ export async function submitAnswer(roomCode: string, uid: number, answer: string
 
   const poem = room.poems[room.currentRound - 1];
   // 使用当前字符位置进行匹配
-  const result = await checkPoemForMatch(answer, poem.content, room.currentPos);
+  const result = await checkPoem(answer, poem.content, room.currentPos);
 
   // 更新最后活动时间
   room.lastActivity = Date.now();

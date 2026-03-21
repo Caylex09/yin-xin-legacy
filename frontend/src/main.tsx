@@ -1548,7 +1548,7 @@ function GamesPage() {
             </article>
           ))}
           <div className="muted small" style={{ marginTop: 8 }}>
-            更多游戏建设中，敬请期待。
+            更多游戏开发中，敬请期待。
           </div>
         </div>
       </section>

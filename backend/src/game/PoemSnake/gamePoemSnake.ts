@@ -473,15 +473,13 @@ export function getPublicScreenPoem() {
 }
 
 // 检查诗句
-export async function checkPoem(poem: string): Promise<{ verdict: number; data: string[] }> {
+export async function checkPoem(poem: string, targetContent: string, targetPos: number): Promise<{ verdict: number; data: string[] }> {
     const empty = ["", "", ""];
 
     const debugBase: Record<string, any> = {
         input: poem,
-        content: gameState.content,
-        origin: gameState.origin,
-        author: gameState.author,
-        pos: gameState.pos,
+        content: targetContent,
+        pos: targetPos,
     };
 
     // 检查长度
@@ -496,16 +494,16 @@ export async function checkPoem(poem: string): Promise<{ verdict: number; data: 
     }
 
     // 检查是否包含高亮字符
-    if (gameState.pos >= gameState.content.length) {
+    if (targetPos >= targetContent.length) {
         console.log("[poem-snake] POS_OUT_OF_RANGE", {
             ...debugBase,
             reason: "pos_out_of_range",
         });
         return { verdict: VERDICT.UNKNOWN, data: empty };
-        return { verdict: VERDICT.NOT_FOUND, data: empty };
+        // return { verdict: VERDICT.NOT_FOUND, data: empty };
     }
 
-    const highlightedChar = gameState.content[gameState.pos];
+    const highlightedChar = targetContent[targetPos];
     debugBase.highlightedChar = highlightedChar;
     if (!poem.includes(highlightedChar)) {
         console.log("[poem-snake] NO_HIGHLIGHT_CHAR", {
@@ -516,7 +514,7 @@ export async function checkPoem(poem: string): Promise<{ verdict: number; data: 
     }
 
     // 检查是否是原诗
-    const contentClean = clearMark(gameState.content);
+    const contentClean = clearMark(targetContent);
     const poemClean = clearMark(poem);
     if (contentClean.includes(poemClean) || poemClean.includes(contentClean)) {
         console.log("[poem-snake] ORIGINAL_POEM", {
@@ -583,24 +581,6 @@ export async function checkPoem(poem: string): Promise<{ verdict: number; data: 
             console.log("[poem-snake] INCOMPLETE", {
                 ...debugBase,
                 reason: "incomplete_sentence",
-                matchedLine: searchResult.matchedLine,
-            });
-            return { verdict: VERDICT.INCOMPLETE, data: empty };
-        }
-    }
-
-    // 特殊情况：如果用户输入以句号结尾，但匹配到的完整句子在句号之后还有内容，也判定为半句
-    // 例如：用户输入"窗含西岭千秋雪。"，完整句子是"窗含西岭千秋雪，门泊东吴万里船。"
-    const poemOriginal = poem.trim();
-    if (poemOriginal.endsWith("。") && matchedLineOriginal.length > poemOriginal.length) {
-        // 检查完整句子在用户输入之后是否还有非标点符号的内容
-        const remainingOriginal = matchedLineOriginal.slice(poemOriginal.length);
-        const remainingOriginalWithoutPunct = remainingOriginal.replace(/[，。！？、；：""''（）《》〈〉……—…·\s]/g, "");
-        if (remainingOriginalWithoutPunct.length > 0) {
-            // 用户输入的是半句，判定为不正确
-            console.log("[poem-snake] INCOMPLETE", {
-                ...debugBase,
-                reason: "incomplete_sentence_with_period",
                 matchedLine: searchResult.matchedLine,
             });
             return { verdict: VERDICT.INCOMPLETE, data: empty };
