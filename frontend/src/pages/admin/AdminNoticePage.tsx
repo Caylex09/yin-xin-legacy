@@ -69,6 +69,8 @@ export function AdminNoticePage() {
             <Link className="btn ghost" to="/admin/poetry">诗词管理</Link>
             <Link className="btn ghost" to="/admin/fix/poet">诗人修复</Link>
             <Link className="btn ghost" to="/admin/fix/poetry">诗词修复</Link>
+            <Link className="btn ghost" to="/admin/wiki">百科属性配置</Link>
+            <Link className="btn ghost" to="/admin/popular">百科内容分配</Link>
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { MeiliSearch } from "meilisearch";
+import { getDb } from "./db";
 
 const MEILI_HOST = process.env.MEILI_HOST || "http://127.0.0.1:7700";
 const MEILI_API_KEY = process.env.MEILI_API_KEY || "";
@@ -82,6 +83,20 @@ export function createSearchApiRouter(): Router {
         offset: Number(offset) || 0,
         filter: filter.length ? filter : undefined,
       });
+
+      const hitIds = result.hits.map(h => h.id);
+      if (hitIds.length > 0) {
+        const placeholders = hitIds.map(() => '?').join(',');
+        const wikiRows = getDb().prepare(`SELECT * FROM wiki_items WHERE target_type = 'poetry' AND target_id IN (${placeholders})`).all(hitIds) as any[];
+        const wikiMap = new Map(wikiRows.map(r => [r.target_id, JSON.parse(r.attributes || '{}')]));
+        for (const hit of result.hits) {
+          if (wikiMap.has(hit.id)) {
+            hit.wiki = true;
+            hit.wiki_attributes = wikiMap.get(hit.id);
+          }
+        }
+      }
+
       res.json(result);
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
@@ -151,6 +166,13 @@ export function createSearchApiRouter(): Router {
         return res.redirect(302, "/api/poetry/random");
       }
       const doc = await client.index("poetry").getDocument(req.params.id);
+
+      const wikiRow = getDb().prepare("SELECT * FROM wiki_items WHERE target_type = 'poetry' AND target_id = ?").get(req.params.id) as any;
+      if (wikiRow) {
+        doc.wiki = true;
+        doc.wiki_attributes = JSON.parse(wikiRow.attributes || '{}');
+      }
+
       res.json(doc);
     } catch (e: any) {
       const msg = (e as any)?.message || "";
@@ -164,6 +186,13 @@ export function createSearchApiRouter(): Router {
   router.get("/api/poets/:id", async (req, res) => {
     try {
       const doc = await client.index("poets").getDocument(req.params.id);
+
+      const wikiRow = getDb().prepare("SELECT * FROM wiki_items WHERE target_type = 'poet' AND target_id = ?").get(req.params.id) as any;
+      if (wikiRow) {
+        doc.wiki = true;
+        doc.wiki_attributes = JSON.parse(wikiRow.attributes || '{}');
+      }
+
       res.json(doc);
     } catch (e: any) {
       const msg = (e as any)?.message || "";
@@ -186,6 +215,20 @@ export function createSearchApiRouter(): Router {
         offset: Number(offset) || 0,
         filter: filter.length ? filter : undefined,
       });
+
+      const hitIds = result.hits.map(h => h.id);
+      if (hitIds.length > 0) {
+        const placeholders = hitIds.map(() => '?').join(',');
+        const wikiRows = getDb().prepare(`SELECT * FROM wiki_items WHERE target_type = 'poet' AND target_id IN (${placeholders})`).all(hitIds) as any[];
+        const wikiMap = new Map(wikiRows.map(r => [r.target_id, JSON.parse(r.attributes || '{}')]));
+        for (const hit of result.hits) {
+          if (wikiMap.has(hit.id)) {
+            hit.wiki = true;
+            hit.wiki_attributes = wikiMap.get(hit.id);
+          }
+        }
+      }
+
       res.json(result);
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });

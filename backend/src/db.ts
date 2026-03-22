@@ -197,6 +197,22 @@ export function getDb() {
       FOREIGN KEY (created_by) REFERENCES users(uid)
     );
     CREATE INDEX IF NOT EXISTS idx_ticket_replies_ticket_id ON ticket_replies(ticket_id);
+    CREATE TABLE IF NOT EXISTS wiki_attributes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      target_type TEXT NOT NULL,
+      key TEXT NOT NULL,
+      name TEXT NOT NULL,
+      options TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS wiki_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      target_type TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      attributes TEXT NOT NULL,
+      UNIQUE(target_type, target_id)
+    );
   `);
   // ensure column is_announcement_admin exists
   const cols = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;

@@ -35,6 +35,10 @@ import { AdminPoetryPage } from "./pages/admin/AdminPoetryPage";
 import { AdminPoetryEditPage } from "./pages/admin/AdminPoetryEditPage";
 import { PoemSnakePage } from "./pages/game/PoemSnakePage";
 import { PoemSnakeRoomPage } from "./pages/game/PoemSnakeRoomPage";
+import { PopularPage } from "./pages/PopularPage";
+import { AdminWikiPage } from "./pages/admin/AdminWikiPage";
+import { AdminPopularPage } from "./pages/admin/AdminPopularPage";
+import { WikiPage } from "./pages/WikiPage";
 
 
 function OnlinePage() {
@@ -673,6 +677,14 @@ function PoetryPage() {
             ) : (
               <p className="muted small">暂无标签，快去发工单联系管理员添加吧！</p>
             )}
+            {data?.wiki && (
+              <>
+                <h3>百科</h3>
+                <Link className="link-blue" to={`/wiki/poetry/${id}`}>
+                  百科 - {data.title}
+                </Link>
+              </>
+            )}
           </>
         )}
       </section>
@@ -825,7 +837,9 @@ function PoetPage() {
     <>
       <section className="hero">
         <h1>{poetName}</h1>
-        <p>{poetDynasty}</p>
+        <p>
+          {poetDynasty}
+        </p>
         {data?.avatar && (
           <div style={{ marginTop: 12 }}>
             <img
@@ -851,6 +865,14 @@ function PoetPage() {
               <>
                 <h3>生平</h3>
                 <p className="muted pre-line">{data.content}</p>
+              </>
+            )}
+            {data?.wiki && (
+              <>
+                <h3>百科</h3>
+                <Link className="link-blue" to={`/wiki/poet/${id}`}>
+                  百科 - {poetName}
+                </Link>
               </>
             )}
           </>
@@ -932,6 +954,10 @@ function App() {
           <Route path="/admin/poetry/:id" element={<AdminPoetryEditPage />} />
           <Route path="/admin/fix/poet" element={<AdminFixPoetPage />} />
           <Route path="/admin/fix/poetry" element={<AdminFixPoetryPage />} />
+          <Route path="/admin/wiki" element={<AdminWikiPage />} />
+          <Route path="/admin/popular" element={<AdminPopularPage />} />
+          <Route path="/wiki/:type/:id" element={<WikiPage />} />
+          <Route path="/popular" element={<PopularPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/games" element={<GamesPage />} />
@@ -1541,6 +1567,12 @@ function AboutPage() {
 function GamesPage() {
   usePageTitle("游戏列表");
   const games = [
+    {
+      title: "藏诗阁",
+      link: "/popular",
+      desc: "查看本站诗词游戏题库。",
+      note: "由志愿者维护，如有需要修改请发工单联系，也欢迎您成为维护资料的一员！",
+    },
     {
       title: "循花令",
       link: "/game/poem-snake",
