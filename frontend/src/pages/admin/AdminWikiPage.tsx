@@ -12,11 +12,15 @@ export function AdminWikiPage() {
     const [name, setName] = useState("");
     const [options, setOptions] = useState("");
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
+
     const loadAttributes = async () => {
         try {
             const res = await fetch(`${API_BASE}/wiki/attributes`);
             const data = await res.json();
             setAttributes(data || []);
+            setCurrentPage(1);
         } catch (e) {
             alert((e as Error).message);
         }
@@ -119,7 +123,7 @@ export function AdminWikiPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {attributes.map(attr => (
+                            {attributes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(attr => (
                                 <tr key={attr.id}>
                                     <td>{attr.id}</td>
                                     <td>{attr.target_type === "poet" ? "诗人" : "诗词"}</td>
@@ -136,6 +140,26 @@ export function AdminWikiPage() {
                             )}
                         </tbody>
                     </table>
+
+                    <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
+                        <button
+                            className="btn ghost"
+                            disabled={currentPage <= 1}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        >
+                            上一页
+                        </button>
+                        <span className="muted">
+                            第 {currentPage} / {Math.max(1, Math.ceil(attributes.length / itemsPerPage))} 页
+                        </span>
+                        <button
+                            className="btn ghost"
+                            disabled={currentPage >= Math.ceil(attributes.length / itemsPerPage)}
+                            onClick={() => setCurrentPage(p => p + 1)}
+                        >
+                            下一页
+                        </button>
+                    </div>
                 </section>
             )}
         </>

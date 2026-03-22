@@ -57,6 +57,7 @@ function PoetRowWithAvatar({ poet }: { poet: any }) {
     );
 }
 
+
 export function PopularPage() {
     usePageTitle("藏诗阁");
     const [params, setParams] = useSearchParams();
@@ -124,13 +125,19 @@ export function PopularPage() {
                                         tab === "poet" ? (
                                             <PoetRowWithAvatar key={p.id} poet={p} />
                                         ) : (
-                                            <li key={p.id} style={{ padding: "12px 0", borderBottom: "1px solid #eee" }}>
-                                                <Link to={`/poetry/${p.id}`} className="link-blue" style={{ fontSize: "16px" }}>
+                                            <li key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #eee" }}>
+                                                <Link to={`/poetry/${p.id}`} className="link-blue" style={{ fontSize: "16px", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                                     {p.title || "未知内容"}
-                                                    {" （"}
-                                                    {p.author ? <PoetInlineName authorId={p.author} /> : "未知作者"}
-                                                    {"）"}
                                                 </Link>
+                                                <div style={{ fontSize: "14px", flexShrink: 0 }}>
+                                                    {p.author ? (
+                                                        <Link to={`/poet/${p.author}`} className="link-blue">
+                                                            <PoetInlineName authorId={p.author} />
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="muted">未知作者</span>
+                                                    )}
+                                                </div>
                                             </li>
                                         )
                                     ))}

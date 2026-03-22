@@ -61,15 +61,39 @@ export function AdminPopularPage() {
     }, [type]);
 
     const onSearch = async () => {
+        if (!q.trim()) {
+            setData([]);
+            return;
+        }
+
+        let exactMatch = null;
+        try {
+            const res = await fetch(`${API_BASE}/${type === "poet" ? "poets" : "poetry"}/${q.trim()}`);
+            if (res.ok) {
+                const item = await res.json();
+                if (item && item.id) {
+                    exactMatch = item;
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+
         const res = await fetch(`${API_BASE}/search/${type === "poet" ? "poets" : "poetry"}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ q, limit: 20 }),
+            body: JSON.stringify({ q: q.trim(), limit: 20 }),
         });
         const { hits } = await res.json();
-        // 搜索结果中过滤掉已经是百科的项目，只保留最多5个没有百科属性的项目
-        const nonWikiHits = (hits || []).filter((h: any) => !h.wiki).slice(0, 5);
-        setData(nonWikiHits);
+
+        let mergedHits = hits || [];
+        if (exactMatch) {
+            mergedHits = mergedHits.filter((h: any) => h.id !== exactMatch.id);
+            mergedHits.unshift(exactMatch);
+        }
+
+        const displayHits = mergedHits.slice(0, 5);
+        setData(displayHits);
     };
 
     // Keep track of unsaved changes in `modified` mapping
@@ -228,27 +252,25 @@ export function AdminPopularPage() {
                         </tbody>
                     </table>
 
-                    {allWikiData.length > itemsPerPage && (
-                        <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
-                            <button
-                                className="btn ghost"
-                                disabled={currentPage === 1}
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            >
-                                上一页
-                            </button>
-                            <span className="muted">
-                                第 {currentPage} / {Math.ceil(allWikiData.length / itemsPerPage)} 页
-                            </span>
-                            <button
-                                className="btn ghost"
-                                disabled={currentPage === Math.ceil(allWikiData.length / itemsPerPage)}
-                                onClick={() => setCurrentPage(p => p + 1)}
-                            >
-                                下一页
-                            </button>
-                        </div>
-                    )}
+                    <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
+                        <button
+                            className="btn ghost"
+                            disabled={currentPage <= 1}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        >
+                            上一页
+                        </button>
+                        <span className="muted">
+                            第 {currentPage} / {Math.max(1, Math.ceil(allWikiData.length / itemsPerPage))} 页
+                        </span>
+                        <button
+                            className="btn ghost"
+                            disabled={currentPage >= Math.ceil(allWikiData.length / itemsPerPage)}
+                            onClick={() => setCurrentPage(p => p + 1)}
+                        >
+                            下一页
+                        </button>
+                    </div>
                 </section>
             )}
         </>
