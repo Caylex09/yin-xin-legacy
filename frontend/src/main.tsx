@@ -267,6 +267,7 @@ function Search() {
   usePageTitle("搜索");
   const [params] = useSearchParams();
   const q = params.get("q") || "";
+  const tag = params.get("tag") || "";
   const navigate = useNavigate();
   const [hits, setHits] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -283,18 +284,23 @@ function Search() {
     const input = document.querySelector<HTMLInputElement>("#search-input");
     if (!input) return;
     const val = input.value.trim();
-    if (!val) return;
-    navigate(`/search?q=${encodeURIComponent(val)}`);
+    if (!val && !tag) return;
+    const p = new URLSearchParams();
+    if (val) p.set("q", val);
+    if (tag) p.set("tag", tag);
+    navigate(`/search?${p.toString()}`);
   };
 
   const fetchPoetry = useCallback(
     async (offset: number, append: boolean) => {
       if (!append) setLoading(true);
       try {
+        const payload: any = { q, limit: 20, offset };
+        if (tag) payload.tags = [tag];
         const r = await fetch(`${API_BASE}/search/poetry`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ q, limit: 20, offset }),
+          body: JSON.stringify(payload),
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
@@ -354,17 +360,19 @@ function Search() {
         if (!append) setLoading(false);
       }
     },
-    [q]
+    [q, tag]
   );
 
   const fetchPoets = useCallback(
     async (offset: number, append: boolean) => {
       if (!append) setLoadingPoets(true);
       try {
+        const payload: any = { q, limit: 3, offset };
+        if (tag) payload.tags = [tag];
         const r = await fetch(`${API_BASE}/search/poets`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ q, limit: 3, offset }),
+          body: JSON.stringify(payload),
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
@@ -396,11 +404,11 @@ function Search() {
         if (!append) setLoadingPoets(false);
       }
     },
-    [q]
+    [q, tag]
   );
 
   useEffect(() => {
-    if (!q) {
+    if (!q && !tag) {
       setHits([]);
       setPoets([]);
       setError("");
@@ -451,13 +459,28 @@ function Search() {
     };
 
     performSearch();
-  }, [q]);
+  }, [q, tag]);
 
   return (
     <>
       <section className="hero">
         <h1>搜索结果</h1>
-        <p>当前关键词：{q || "（未输入）"}</p>
+        <p>
+          {q && !tag ? `当前关键词：${q}` : ""}
+          {!q && tag ? (
+            <>
+              当前标签：{tag}
+              <Link to="/search" style={{ marginLeft: 8, fontSize: 13, color: "#999", textDecoration: "none" }}>[清除标签]</Link>
+            </>
+          ) : ""}
+          {q && tag ? (
+            <>
+              当前关键词：{q} 标签：{tag}
+              <Link to={`/search?q=${encodeURIComponent(q)}`} style={{ marginLeft: 8, fontSize: 13, color: "#999", textDecoration: "none" }}>[清除标签]</Link>
+            </>
+          ) : ""}
+          {!q && !tag ? `当前关键词：（未输入）` : ""}
+        </p>
         <div className="search">
           <input
             defaultValue={q}
@@ -479,8 +502,8 @@ function Search() {
         <div className="result-list">
           {loadingPoets && <div className="muted">搜索中...</div>}
           {errorPoets && <div className="muted">请求失败：{errorPoets}</div>}
-          {!loadingPoets && !errorPoets && !q && <div className="muted">请输入关键词</div>}
-          {!loadingPoets && !errorPoets && q && poets.length === 0 && <div className="muted">未找到结果</div>}
+          {!loadingPoets && !errorPoets && !q && !tag && <div className="muted">请输入关键词</div>}
+          {!loadingPoets && !errorPoets && (q || tag) && poets.length === 0 && <div className="muted">未找到结果</div>}
           {!loadingPoets && !errorPoets && poets.length > 0 && (
             <div className="hit-list">
               {poets.map((p) => (
@@ -510,8 +533,8 @@ function Search() {
         <div id="result-list" className="result-list">
           {loading && <div className="muted">搜索中...</div>}
           {error && <div className="muted">请求失败：{error}</div>}
-          {!loading && !error && !q && <div className="muted">请输入关键词</div>}
-          {!loading && !error && q && hits.length === 0 && <div className="muted">未找到结果</div>}
+          {!loading && !error && !q && !tag && <div className="muted">请输入关键词</div>}
+          {!loading && !error && (q || tag) && hits.length === 0 && <div className="muted">未找到结果</div>}
           {!loading && !error && hits.length > 0 && (
             <div className="hit-list">
               {hits.map((hit) => (
@@ -642,9 +665,9 @@ function PoetryPage() {
             {data.tags && Array.isArray(data.tags) && data.tags.length > 0 ? (
               <div className="tags">
                 {data.tags.map((t: string) => (
-                  <span className="tag" key={t}>
+                  <Link to={`/search?tag=${encodeURIComponent(t)}`} className="tag" key={t}>
                     {t}
-                  </span>
+                  </Link>
                 ))}
               </div>
             ) : (

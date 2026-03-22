@@ -1240,3 +1240,22 @@ body {
   border-radius: 6px;
   margin: 1em 0;
 }
+
+.tag {
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: rgba(255, 193, 153, 0.25);
+  color: #a3541c;
+  font-size: 13px;
+  text-decoration: none;
+  /* 去除原本的丑陋下划线 */
+  transition: all 0.2s ease;
+  /* 添加动画过渡 */
+}
+
+.tag:hover {
+  background: rgba(255, 193, 153, 0.4);
+  /* 悬浮时稍稍加深背景 */
+  color: #8b4425;
+  /* 悬浮时加深文字 */
+}
