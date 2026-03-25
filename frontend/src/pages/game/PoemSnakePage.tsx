@@ -54,7 +54,7 @@ interface PlayerStats {
 
 
 export function PoemSnakePage() {
-  usePageTitle("古诗（）谜");
+  usePageTitle("循花令");
   const navigate = useNavigate();
 
   const [gameState, setGameState] = useState<GameState>({
@@ -132,7 +132,7 @@ export function PoemSnakePage() {
       id: "1",
       userId: "1",
       username: "系统",
-      message: "欢迎来到古诗（）谜游戏！",
+      message: "欢迎来到循花令游戏！",
       timestamp: new Date().toISOString(),
     }
   ]);
