@@ -1037,7 +1037,7 @@ export function setupPoemSnakeSocket(
       }
 
       // 在调用 requestSkip 之前保存 initiator（如果已有投票在进行中）
-      const existingInitiator = (room as any).skipInitiator;
+      const existingInitiator = room.activeVotes.get("skip")?.initiator;
 
       const vote = matchmaking.requestSkip(data.roomCode, uid);
       if (!vote.success && (vote as any).error) {
@@ -1064,7 +1064,7 @@ export function setupPoemSnakeSocket(
         // 启动超时结算
         if (!skipVoteTimers.has(data.roomCode)) {
           // 在超时回调之前保存 initiator，因为 resolveSkipVote 会清空投票状态
-          const initiator = (room as any).skipInitiator;
+          const initiator = room.activeVotes.get("skip")?.initiator;
           const t = setTimeout(async () => {
             const res = await matchmaking.resolveSkipVote(data.roomCode);
             skipVoteTimers.delete(data.roomCode);
@@ -1196,9 +1196,9 @@ export function setupPoemSnakeSocket(
       }
 
       // 在调用 acceptSkip 之前保存 initiator，因为 resolveSkipVote 会清空投票状态
-      const initiator = (room as any).skipInitiator;
+      const initiator = room.activeVotes.get("skip")?.initiator;
 
-      const result = matchmaking.acceptSkip(data.roomCode, uid);
+      const result = await matchmaking.acceptSkip(data.roomCode, uid);
       if (!result.success) {
         socket.emit("room_error", { error: (result as any).error });
         return;
@@ -1298,7 +1298,7 @@ export function setupPoemSnakeSocket(
       }
 
       // 在调用 rejectSkip 之前保存 initiator，因为 resolveSkipVote 会清空投票状态
-      const initiator = (room as any).skipInitiator;
+      const initiator = room.activeVotes.get("skip")?.initiator;
 
       // 投票进行中
       if (result.state === "pending") {
@@ -1317,8 +1317,8 @@ export function setupPoemSnakeSocket(
         }
 
         // 检查是否所有人都已投票，如果是则立即结算
-        const otherPlayers = room.players.filter(p => p.uid !== initiator);
-        const otherVotedCount = Array.from((room as any).skipVotes?.keys() || []).filter(uid => uid !== initiator).length;
+        const otherPlayers = room.players.filter((p: any) => p.uid !== initiator);
+        const otherVotedCount = Array.from(room.activeVotes.get("skip")?.votes.keys() || []).filter(uid => uid !== initiator).length;
         if (otherVotedCount >= otherPlayers.length) {
           if (skipVoteTimers.has(data.roomCode)) {
             clearTimeout(skipVoteTimers.get(data.roomCode)!);
@@ -1703,7 +1703,7 @@ export function setupPoemSnakeSocket(
         // 启动超时结算
         if (!endVoteTimers.has(data.roomCode)) {
           // 在超时回调之前保存 initiator，因为 resolveEndVote 会清空投票状态
-          const initiator = (room as any).endInitiator;
+          const initiator = room.activeVotes.get("end")?.initiator;
           const t = setTimeout(async () => {
             const res = await matchmaking.resolveEndVote(data.roomCode);
             endVoteTimers.delete(data.roomCode);
@@ -1778,6 +1778,8 @@ export function setupPoemSnakeSocket(
         endVoteTimers.delete(data.roomCode);
       }
 
+      broadcastVoteResult(io, room, vote as any, "end");
+
       // 如果投票通过，处理结束逻辑
       if ((vote as any).state === "applied") {
         if (room.status === "playing") {
@@ -1831,9 +1833,9 @@ export function setupPoemSnakeSocket(
         }
 
         // 检查是否所有人都已投票，如果是则立即结算
-        const initiator = (room as any).endInitiator;
-        const otherPlayers = room.players.filter(p => p.uid !== initiator);
-        const otherVotedCount = Array.from((room as any).endVotes?.keys() || []).filter(uid => uid !== initiator).length;
+        const initiator = room.activeVotes.get("end")?.initiator;
+        const otherPlayers = room.players.filter((p: any) => p.uid !== initiator);
+        const otherVotedCount = Array.from(room.activeVotes.get("end")?.votes.keys() || []).filter(uid => uid !== initiator).length;
         if (otherVotedCount >= otherPlayers.length) {
           if (endVoteTimers.has(data.roomCode)) {
             clearTimeout(endVoteTimers.get(data.roomCode)!);

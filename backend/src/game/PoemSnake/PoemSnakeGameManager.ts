@@ -66,17 +66,17 @@ export class PoemSnakeGameManager extends BaseGameManager<PoemSnakeState, BaseRo
     public async fetchNextPoem(roomCode: string): Promise<boolean> {
         const room = this.getRoom(roomCode);
         if (!room) return false;
-        
+
         try {
             const poem = await getPoem();
             if (!poem || !poem.content) return false;
-            
+
             let pos = 0;
             while (pos < poem.content.length && PUNCTUATION.includes(poem.content[pos])) {
                 pos++;
             }
             if (pos >= poem.content.length) pos = 0;
-            
+
             room.state.poems.push({ ...poem, pos });
             return true;
         } catch (e) {
@@ -228,7 +228,7 @@ export class PoemSnakeGameManager extends BaseGameManager<PoemSnakeState, BaseRo
             room.players = room.players.filter((p) => p.uid !== uid);
             room.playerScores.delete(uid);
         }
-        
+
         super.leaveMatchmaking(uid);
 
         if (!keepPlayerInWaitingMatch && !keepDuringPlaying && room.players.length === 0) {
@@ -319,7 +319,7 @@ export class PoemSnakeGameManager extends BaseGameManager<PoemSnakeState, BaseRo
     }
 
     // ================= 投票 wrappers =================
-    
+
     public requestSkip(roomCode: string, uid: number) {
         const room = this.rooms.get(roomCode);
         if (!room || room.status !== "playing") return { success: false, state: "failed" as const, skipChar: false, error: "房间不存在或游戏未开始" };
@@ -330,7 +330,7 @@ export class PoemSnakeGameManager extends BaseGameManager<PoemSnakeState, BaseRo
         }
 
         if (room.players.length === 1) {
-            this.applySkip(roomCode, uid).then(() => {});
+            this.applySkip(roomCode, uid).then(() => { });
             return { success: true, state: "applied" as const, skipChar: true, finished: false, accept: 1, reject: 0 };
         }
 
@@ -341,39 +341,43 @@ export class PoemSnakeGameManager extends BaseGameManager<PoemSnakeState, BaseRo
     public async resolveSkipVote(roomCode: string, forceApply: boolean = false) {
         const room = this.getRoom(roomCode);
         if (!room || room.status !== "playing") {
-             this.clearVote(roomCode, "skip");
-             return { success: false, state: "failed" as const };
+            this.clearVote(roomCode, "skip");
+            return { success: false, state: "failed" as const };
         }
         const session = room.activeVotes.get("skip");
         if (!session) return { success: false, state: "failed" as const };
-        
+
+        const needed = Math.floor(session.voteOnlineCount / 2) + 1;
         const result = this.calculateVoteResult(roomCode, "skip");
         this.clearVote(roomCode, "skip");
 
-        if (forceApply || (result && result.accept >= (Math.floor(session.voteOnlineCount / 2) + 1))) {
+        if (forceApply || (result && result.accept >= needed)) {
             const res = await this.applySkip(roomCode, session.initiator);
-            return { success: true, state: "applied" as const, ...res, ...result };
+            return { success: true, state: "applied" as const, ...res, ...result, needed };
         }
-        return { success: true, state: "failed" as const, ...result };
+        return { success: true, state: "failed" as const, ...result, needed };
     }
 
-    public acceptSkip(roomCode: string, uid: number) {
+    public async acceptSkip(roomCode: string, uid: number) {
         const result = this.handleVote(roomCode, "skip", uid, "accept");
         const session = this.getRoom(roomCode)?.activeVotes.get("skip");
         if (result.success && session) {
             const voteResult = this.calculateVoteResult(roomCode, "skip");
             const needed = Math.floor(session.voteOnlineCount / 2) + 1;
             if (voteResult && voteResult.accept >= needed) {
-                 return { success: true, state: "applied" as const, accept: voteResult.accept, reject: voteResult.reject, voteStatus: voteResult.voteStatus };
+                return await this.resolveSkipVote(roomCode, true);
             }
+            return { success: true, state: "pending" as const, needed, accept: voteResult?.accept || 0, reject: voteResult?.reject || 0, voteStatus: voteResult?.voteStatus || [] };
         }
         return { success: result.success, state: "pending" as const };
     }
 
     public rejectSkip(roomCode: string, uid: number) {
         const result = this.handleVote(roomCode, "skip", uid, "reject");
+        const session = this.getRoom(roomCode)?.activeVotes.get("skip");
         const voteResult = this.calculateVoteResult(roomCode, "skip");
-        return { success: result.success, state: "pending" as const, accept: voteResult?.accept || 0, reject: voteResult?.reject || 0, voteStatus: voteResult?.voteStatus || [] };
+        const needed = session ? Math.floor(session.voteOnlineCount / 2) + 1 : 0;
+        return { success: result.success, state: "pending" as const, needed, accept: voteResult?.accept || 0, reject: voteResult?.reject || 0, voteStatus: voteResult?.voteStatus || [] };
     }
 
     public requestEnd(roomCode: string, uid: number) {
@@ -391,17 +395,19 @@ export class PoemSnakeGameManager extends BaseGameManager<PoemSnakeState, BaseRo
             const voteResult = this.calculateVoteResult(roomCode, "end");
             const needed = Math.floor(session.voteOnlineCount / 2) + 1;
             if (voteResult && voteResult.accept >= needed) {
-                 return { success: true, state: "applied" as const, accept: voteResult.accept, reject: voteResult.reject, voteStatus: voteResult.voteStatus };
+                return this.resolveEndVote(roomCode);
             }
-            return { success: true, state: "pending" as const, accept: voteResult?.accept || 0, reject: voteResult?.reject || 0, voteStatus: voteResult?.voteStatus || [] };
+            return { success: true, state: "pending" as const, needed, accept: voteResult?.accept || 0, reject: voteResult?.reject || 0, voteStatus: voteResult?.voteStatus || [] };
         }
         return { success: result.success, state: "pending" as const, accept: 0, reject: 0, voteStatus: [] };
     }
 
     public rejectEnd(roomCode: string, uid: number) {
         const result = this.handleVote(roomCode, "end", uid, "reject");
+        const session = this.getRoom(roomCode)?.activeVotes.get("end");
         const voteResult = this.calculateVoteResult(roomCode, "end");
-        return { success: result.success, state: "pending" as const, accept: voteResult?.accept || 0, reject: voteResult?.reject || 0, voteStatus: voteResult?.voteStatus || [] };
+        const needed = session ? Math.floor(session.voteOnlineCount / 2) + 1 : 0;
+        return { success: result.success, state: "pending" as const, needed, accept: voteResult?.accept || 0, reject: voteResult?.reject || 0, voteStatus: voteResult?.voteStatus || [] };
     }
 
     public resolveEndVote(roomCode: string) {
@@ -409,14 +415,16 @@ export class PoemSnakeGameManager extends BaseGameManager<PoemSnakeState, BaseRo
         if (!room) return { success: false, state: "failed" as const };
         const session = room.activeVotes.get("end");
         if (!session) return { success: false, state: "failed" as const };
+
+        const needed = Math.floor(session.voteOnlineCount / 2) + 1;
         const result = this.calculateVoteResult(roomCode, "end");
         this.clearVote(roomCode, "end");
-        
-        if (result && result.accept >= (Math.floor(session.voteOnlineCount / 2) + 1)) {
+
+        if (result && result.accept >= needed) {
             const finishResult = this.finishGame(roomCode);
-            return { success: true, state: "applied" as const, finishResult, ...result };
+            return { success: true, state: "applied" as const, finishResult, needed, ...result };
         }
-        return { success: true, state: "failed" as const, ...result };
+        return { success: true, state: "failed" as const, needed, ...result };
     }
 
     public getRoomSubmissions(roomCode: string, uid?: number) {
@@ -443,7 +451,7 @@ export class PoemSnakeGameManager extends BaseGameManager<PoemSnakeState, BaseRo
         const room = this.rooms.get(roomCode);
         if (!room || room.status !== "playing") return { success: false, error: "房间不符合条件" };
         this.handleVote(roomCode, "draw", uid, "accept");
-        
+
         const session = room.activeVotes.get("draw");
         if (session && session.requests.size >= 2) {
             const finishResult = this.finishGame(roomCode);
