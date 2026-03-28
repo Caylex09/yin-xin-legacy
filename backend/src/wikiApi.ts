@@ -56,7 +56,7 @@ export function createWikiApiRouter(): Router {
       delete mp.wiki_attributes;
       await client.index('poetry').updateDocuments([mp]);
 
-      clearPoemleCache();
+      clearPoemleCache([id]);
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
@@ -184,6 +184,7 @@ export function createWikiApiRouter(): Router {
           }
         }
       })();
+      clearPoemleCache(payload.map(item => item.id));
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });

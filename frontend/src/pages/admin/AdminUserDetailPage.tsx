@@ -92,6 +92,33 @@ export function AdminUserDetailPage() {
       if (!resp.ok) throw new Error(d.error || `HTTP ${resp.status}`);
       setData((prev: any) => (prev ? { ...prev, role } : prev));
       setMsg("角色已更新");
+
+      // 如果降级为普通用户或封禁，撤销细分的管理权限
+      if (role !== 1 && data) {
+        const revokeFlag = async (field: string, ep: string) => {
+          await fetch(`${API_BASE}/admin/users/${uid}/${ep}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ value: false }),
+          }).catch(() => { });
+        };
+        if (data.is_announcement_admin) await revokeFlag("announcement", "announcement-admin");
+        if (data.is_wiki_admin) await revokeFlag("wiki", "wiki-admin");
+        if (data.is_super_admin) await revokeFlag("super", "super-admin");
+        if (data.is_game_admin) await revokeFlag("game", "game-admin");
+
+        setData((prev: any) =>
+          prev
+            ? {
+              ...prev,
+              is_announcement_admin: 0,
+              is_wiki_admin: 0,
+              is_super_admin: 0,
+              is_game_admin: 0,
+            }
+            : prev
+        );
+      }
     } catch (e) {
       setError((e as Error).message);
     }
@@ -99,6 +126,10 @@ export function AdminUserDetailPage() {
 
   const updateFlag = async (field: "announcement" | "wiki" | "super" | "game", value: boolean) => {
     try {
+      if (value && data?.role !== 1) {
+        setError("必须先将用户设为管理员，才能授予细分管理权限");
+        return;
+      }
       const token = getToken();
       if (!token) throw new Error("请先登录");
       const map: Record<typeof field, string> = {

@@ -182,10 +182,34 @@ poemleRouter.get('/api/game/poemle/daily', async (req: Request, res: Response) =
 
 let cachedCharFreqs: { char: string, count: number }[] | null = null;
 
-export function clearPoemleCache() {
-    cachedDailyPoems = null;
-    lastSeedStr = '';
+export function clearPoemleCache(editedIds?: string[]) {
+    // 强制清除字频缓存，因为这影响搜索框输入提示
     cachedCharFreqs = null;
+
+    if (editedIds && Array.isArray(editedIds) && cachedDailyPoems) {
+        const involvesDaily = editedIds.some(id =>
+            cachedDailyPoems?.qiyan?.id === id ||
+            cachedDailyPoems?.wuyan?.id === id ||
+            cachedDailyPoems?.free?.id === id
+        );
+
+        if (!involvesDaily) {
+            // 不涉及每日题库，直接返回，绝对不重置
+            return;
+        }
+
+        // 如果涉及了正在进行的对局（比如修复了今天正在用来挑战的题目的错别字）。
+        // 抉择：为了保证今天的对局连贯性，**我们选择只清字频，而不清空 daily 缓存并重置池子**。
+        // 让每日题库里的这首诗保留之前的内存快照直至次日通过日期自动更换。
+        // 哪怕有错别字，这对于大家正在针对当前答案抓耳挠腮的情况来说，中途（由于洗牌变动）无预警换掉所有每日题目会导致灾难性体验。所以将错就错最公平。
+        return;
+    }
+
+    // 如果未指定具体 ID（说明是整个系统级或者不可推断的改变），才进行全面清空
+    if (!editedIds) {
+        cachedDailyPoems = null;
+        lastSeedStr = '';
+    }
 }
 
 poemleRouter.get('/api/game/poemle/chars', async (req: Request, res: Response) => {
