@@ -49,6 +49,7 @@ export function AdminPoetEditPage() {
     const form = e.currentTarget;
     const fd = new FormData(form);
     const payload: any = {
+      ...data,
       name: fd.get("name") as string,
       dynasty: fd.get("dynasty") as string,
       description: fd.get("description") as string,

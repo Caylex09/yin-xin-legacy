@@ -55,6 +55,7 @@ export function AdminPoetryEditPage() {
       .filter(Boolean)
       .map((line) => splitSentences(line));
     const payload: any = {
+      ...data,
       title: fd.get("title") as string,
       author: fd.get("author") as string,
       dynasty: fd.get("dynasty") as string,

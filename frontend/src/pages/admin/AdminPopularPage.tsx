@@ -12,6 +12,9 @@ export function AdminPopularPage() {
     const [attributes, setAttributes] = useState<any[]>([]);
     const [authError, setAuthError] = useState("");
 
+    // Authors cache mapping author ID -> { name, dynasty }
+    const [authors, setAuthors] = useState<Record<string, { name?: string; dynasty?: string }>>({});
+
     // Modified items waiting to be saved
     const [modified, setModified] = useState<{ [id: string]: any }>({});
 
@@ -60,6 +63,30 @@ export function AdminPopularPage() {
         setData([]);
     }, [type]);
 
+    useEffect(() => {
+        if (type !== 'poetry') return;
+        const items = [...data, ...allWikiData];
+        const ids = Array.from(
+            new Set(
+                items
+                    .map((p) => (p.author ? String(p.author) : ""))
+                    .filter((id) => id && !authors[id])
+            )
+        );
+        if (!ids.length) return;
+        ids.forEach((id) => {
+            fetch(`${API_BASE}/poets/${id}`)
+                .then(async (r) => {
+                    const d = await r.json();
+                    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+                    setAuthors((prev) => ({ ...prev, [String(id)]: { name: d.name, dynasty: d.dynasty } }));
+                })
+                .catch(() => {
+                    /* ignore */
+                });
+        });
+    }, [data, allWikiData, authors, type]);
+
     const onSearch = async () => {
         if (!q.trim()) {
             setData([]);
@@ -82,7 +109,7 @@ export function AdminPopularPage() {
         const res = await fetch(`${API_BASE}/search/${type === "poet" ? "poets" : "poetry"}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ q: q.trim(), limit: 20 }),
+            body: JSON.stringify({ q: q.trim(), limit: 50 }),
         });
         const { hits } = await res.json();
 
@@ -92,7 +119,7 @@ export function AdminPopularPage() {
             mergedHits.unshift(exactMatch);
         }
 
-        const displayHits = mergedHits.slice(0, 5);
+        const displayHits = mergedHits.slice(0, 50);
         setData(displayHits);
     };
 
@@ -163,7 +190,21 @@ export function AdminPopularPage() {
                         {item.id}
                     </a>
                 </td>
-                <td>{item.name || item.title}</td>
+                <td>
+                    {item.name || item.title}
+                    {(() => {
+                        if (type !== "poetry") return null;
+                        const aid = item.author ? String(item.author) : "";
+                        const dynasty = (aid && authors[aid]?.dynasty) || item.dynasty || "";
+                        const authorName = (aid && authors[aid]?.name) || item.authorName || item.author || "未知";
+                        if (!dynasty && !authorName) return null;
+                        return (
+                            <span className="muted small" style={{ marginLeft: 8 }}>
+                                ({dynasty ? `${dynasty} · ` : ""}{authorName})
+                            </span>
+                        );
+                    })()}
+                </td>
                 <td>
                     <button
                         className="btn ghost"
