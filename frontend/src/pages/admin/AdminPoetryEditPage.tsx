@@ -17,6 +17,10 @@ export function AdminPoetryEditPage() {
 
   const load = useCallback(async () => {
     if (!id) return;
+    if (!getToken()) {
+      setError("未登录");
+      return;
+    }
     setError("");
     try {
       const resp = await fetch(`${API_BASE}/poetry/${id}`);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE } from "../../../config";
 import { getToken } from "../../../auth";
@@ -94,7 +94,7 @@ export function PoemleRoomPage() {
                         avatar: p.avatar,
                         score: p.score || 0,
                         ready: true, // Poemle auto readies or host starts
-                        guesses: []
+                        guesses: p.guesses || []
                     };
                 });
             }
@@ -104,17 +104,41 @@ export function PoemleRoomPage() {
                 status: state.status,
                 players: playersRecord,
                 host: String(state.hostId),
-                round: prev ? prev.round : 1,
+                round: prev ? prev.round : (state.currentRound || 1),
                 maxRounds: state.maxRounds,
                 mode: state.mode,
                 autoStart: state.autoStart
             }));
+
+            if (state.question?.lineLength) {
+                setLineLength(state.question.lineLength);
+            }
             // Get myId correctly using the authenticated token sub if we don't have socket.id right 
             socket.emit("get_my_id"); // We might need this, but let's check first
         });
 
         socket.on("your_id", (data: { uid: number }) => {
             setMyId(String(data.uid));
+        });
+
+        socket.on("room_draw_requested", (data: { uid: number; username?: string }) => {
+            setDrawRequested(true);
+            setDrawRequestedBy(String(data.uid));
+        });
+
+        socket.on("room_draw_rejected", () => {
+            setDrawRequested(false);
+            setDrawRequestedBy(undefined);
+        });
+
+        socket.on("room_skip_requested", (data: { uid: number; username?: string }) => {
+            setSkipRequested(true);
+            setSkipRequestedBy(String(data.uid));
+        });
+
+        socket.on("room_skip_rejected", () => {
+            setSkipRequested(false);
+            setSkipRequestedBy(undefined);
         });
 
         socket.on("room_state", (state: RoomState) => {
@@ -162,13 +186,16 @@ export function PoemleRoomPage() {
                 if (!prev) return prev;
                 const pid = String(data.uid);
                 if (prev.players[pid]) {
+                    const existingGuesses = prev.players[pid].guesses || [];
+                    const newGuesses = data.judgeResult ? [...existingGuesses, data.judgeResult] : existingGuesses;
                     return {
                         ...prev,
                         players: {
                             ...prev.players,
                             [pid]: {
                                 ...prev.players[pid],
-                                score: data.score !== undefined ? data.score : prev.players[pid].score
+                                score: data.score !== undefined ? data.score : prev.players[pid].score,
+                                guesses: newGuesses
                             }
                         }
                     };
@@ -179,7 +206,18 @@ export function PoemleRoomPage() {
 
         socket.on("room_game_started", (data: any) => {
             setCountdown(null);
-            setRoom(prev => prev ? { ...prev, status: "playing", round: data.currentRound } : prev);
+            setRoom(prev => {
+                if (!prev) return prev;
+                const newPlayers = { ...prev.players };
+                if (data.players) {
+                    data.players.forEach((p: any) => {
+                        if (newPlayers[p.uid]) {
+                            newPlayers[p.uid].score = p.score;
+                        }
+                    });
+                }
+                return { ...prev, players: newPlayers, status: "playing", round: data.currentRound };
+            });
             if (data.question) {
                 setLineLength(data.question.lineLength);
             }
@@ -189,8 +227,38 @@ export function PoemleRoomPage() {
             setToast({ message: "体验开始！", type: "info" });
         });
 
+        socket.on("room_question_update", (data: any) => {
+            if (data.question) {
+                setLineLength(data.question.lineLength);
+            }
+            if (data.currentRound) {
+                setRoom(prev => {
+                    if (!prev) return null;
+                    const newPlayers = { ...prev.players };
+                    // Reset everyone's guesses to [] on new question
+                    for (const pid in newPlayers) {
+                        newPlayers[pid] = { ...newPlayers[pid], guesses: [] };
+                    }
+                    return { ...prev, players: newPlayers, round: data.currentRound, status: "playing" };
+                });
+            }
+            setCurrentGuess("");
+            setSuggestions([]);
+            setRoundOver(false);
+            setRoundWinner(null);
+            setSkipRequested(false);
+            setDrawRequested(false);
+            setSkipRequestedBy(undefined);
+            setDrawRequestedBy(undefined);
+            setToast({ message: "已更换题目，新回合开始！", type: "info" });
+        });
+
         socket.on("room_round_end", (data: { answer: string, scores: Record<string, number> }) => {
             setRoundOver(true);
+            setSkipRequested(false);
+            setDrawRequested(false);
+            setSkipRequestedBy(undefined);
+            setDrawRequestedBy(undefined);
             setToast({ message: `本回合结束，答案是: ${data.answer}`, type: "info" });
             // update scores
             setRoom(prev => {
@@ -206,7 +274,10 @@ export function PoemleRoomPage() {
         });
 
         socket.on("room_game_finished", (data: { results: Array<{ uid: number, score: number }> }) => {
-
+            setSkipRequested(false);
+            setDrawRequested(false);
+            setSkipRequestedBy(undefined);
+            setDrawRequestedBy(undefined);
             setRoom(prev => prev ? { ...prev, status: "finished" } : prev);
             let countdown = 5;
             setRoomDestroyCountdown(countdown);
@@ -214,6 +285,7 @@ export function PoemleRoomPage() {
                 countdown--;
                 if (countdown <= 0) {
                     clearInterval(timer);
+                    if (socketRef.current) socketRef.current.emit("room_leave", { roomCode });
                     navigate("/game/poemle");
                 } else {
                     setRoomDestroyCountdown(countdown);
@@ -225,6 +297,7 @@ export function PoemleRoomPage() {
         socket.on("error", (err: { message: string }) => {
             setToast({ message: err.message, type: "error" });
             if (err.message.includes("未找到") || err.message.includes("已满")) {
+                if (socketRef.current) socketRef.current.emit("room_leave", { roomCode });
                 navigate("/game/poemle");
             }
         });
@@ -274,13 +347,48 @@ export function PoemleRoomPage() {
             }
         });
 
+        socket.on("room_sync", (data: { scores: Record<string, number> }) => {
+            setRoom(prev => {
+                if (!prev) return prev;
+                const newPlayers = { ...prev.players };
+                let mutated = false;
+                for (const pid in data.scores) {
+                    if (newPlayers[pid] && newPlayers[pid].score !== data.scores[pid]) {
+                        newPlayers[pid] = { ...newPlayers[pid], score: data.scores[pid] };
+                        mutated = true;
+                    }
+                }
+                return mutated ? { ...prev, players: newPlayers } : prev;
+            });
+        });
+
+        const syncInterval = setInterval(() => {
+            socket.emit("room_sync_request", { roomCode });
+        }, 1000);
+
         return () => {
+            clearInterval(syncInterval);
             socket.disconnect();
         };
     }, [roomCode, navigate]);
 
+    const handleLeave = () => {
+        if (socketRef.current) {
+            socketRef.current.emit("room_leave", { roomCode });
+        }
+        navigate("/game/poemle");
+    };
+
     const sendChatMessage = (msg: string) => {
         if (!msg.trim() || !socketRef.current || !roomCode) return;
+
+        const text = msg.trim().toLowerCase();
+        if (text === 'accept' && skipRequested) {
+            handleAcceptSkip();
+        } else if (text === 'reject' && skipRequested) {
+            handleRejectSkip();
+        }
+
         socketRef.current.emit("room_chat_message", {
             roomCode,
             message: msg.trim(),
@@ -386,31 +494,50 @@ export function PoemleRoomPage() {
             )}
 
             <section className="results" style={{ marginTop: '0', maxWidth: '1000px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '2px solid rgba(184, 92, 50, 0.2)' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn ghost" onClick={() => navigate("/game/poemle")}>
+                <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '2px solid rgba(184, 92, 50, 0.2)' }}>
+                    <div style={{ position: 'absolute', left: 0, display: 'flex', gap: '8px' }}>
+                        <button className="btn ghost" onClick={handleLeave}>
                             ← 返回房间
                         </button>
-                        {room.status === 'playing' && (
+                        {room.status === 'playing' && !drawRequested && (
+                            <button className="btn ghost" onClick={handleRequestDraw}>
+                                提前结算
+                            </button>
+                        )}
+                        {room.status === 'playing' && drawRequested && drawRequestedBy !== myId && (
                             <>
-                                <button className="btn ghost" onClick={handleRequestDraw} disabled={drawRequested}>
-                                    {drawRequested ? '已请求平局' : '请求平局'}
-                                </button>
-                                <button className="btn ghost" onClick={handleRequestSkip} disabled={skipRequested}>
-                                    {skipRequested ? '已请求换题' : '请求换题'}
-                                </button>
+                                <span style={{ color: '#c86d3f', alignSelf: 'center', fontWeight: 'bold', marginLeft: '8px' }}>{drawRequestedBy && room.players[drawRequestedBy] ? `${room.players[drawRequestedBy].name} ` : '对方'}请求提前结算:</span>
+                                <button className="btn" onClick={handleAcceptDraw}>同意</button>
+                                <button className="btn ghost" onClick={handleRejectDraw}>拒绝</button>
                             </>
+                        )}
+                        {room.status === 'playing' && drawRequested && drawRequestedBy === myId && (
+                            <button className="btn ghost" disabled>已申请提前结算</button>
+                        )}
+                        {room.status === 'playing' && !skipRequested && (
+                            <button className="btn ghost" onClick={handleRequestSkip}>
+                                请求换题
+                            </button>
+                        )}
+                        {room.status === 'playing' && skipRequested && skipRequestedBy !== myId && (
+                            <>
+                                <span style={{ color: '#c86d3f', alignSelf: 'center', fontWeight: 'bold', marginLeft: '8px' }}>{skipRequestedBy && room.players[skipRequestedBy] ? `${room.players[skipRequestedBy].name} ` : '对方'}请求换题:</span>
+                                <button className="btn" onClick={handleAcceptSkip}>同意</button>
+                                <button className="btn ghost" onClick={handleRejectSkip}>拒绝</button>
+                            </>
+                        )}
+                        {room.status === 'playing' && skipRequested && skipRequestedBy === myId && (
+                            <button className="btn ghost" disabled>已请求换题</button>
                         )}
                     </div>
                     <div style={{ textAlign: 'center' }}>
                         <h2 style={{ margin: 0, color: '#b85c32', fontSize: '24px' }}>
-                            房间号: {room.code}
+                            房间号: {room.code} [{room.mode}]
                         </h2>
                         <span style={{ fontSize: '14px', color: '#8f694a' }}>
                             {room.status === 'playing' ? `第 ${room.round} / ${room.maxRounds} 回合` : '大厅准备中'}
                         </span>
                     </div>
-                    <div style={{ width: '80px' }}></div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: opponents.length > 0 ? '1fr 1fr' : '1fr', gap: '40px' }}>
@@ -503,7 +630,7 @@ export function PoemleRoomPage() {
 
                     {countdown !== null && (
                         <div style={{
-                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                             background: 'rgba(255,255,255,0.8)', zIndex: 100,
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
@@ -516,11 +643,10 @@ export function PoemleRoomPage() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <img src={opp.avatar} alt="avatar" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
-                                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#3a1f12' }}>对方（{opp.name}）</span>
+                                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#3a1f12' }}>{!room.autoStart ? '成员' : '对方'}（{opp.name}）</span>
                                 </div>
                                 <span style={{ fontSize: '20px', color: '#b85c32', fontWeight: 'bold' }}>{opp.score} 分</span>
                             </div>
-
                             {room.status === "waiting" ? (
                                 <div style={{ textAlign: 'center', padding: '40px 0' }}>
                                     <p style={{ color: opp.ready ? '#6aaa64' : '#8f694a', fontWeight: 'bold' }}>
@@ -554,73 +680,35 @@ export function PoemleRoomPage() {
                     <h3>聊天室</h3>
                     <div className="chat-messages">
                         {chatMessages.map((msg, i) => (
-                            <div key={i} className="chat-message" style={{ fontSize: '14px', textAlign: 'left' }}>
-                                <span className="chat-username" style={{ fontWeight: 'bold', color: msg.userId === myId ? '#1976d2' : '#333' }}>
+                            <div key={i} className="chat-message">
+                                <span className="chat-username" style={{ color: msg.userId === myId ? '#1976d2' : undefined }}>
                                     {msg.username}:
                                 </span>
-                                <span className="chat-content" style={{ marginLeft: '4px', wordBreak: 'break-all' }}>{msg.message}</span>
+                                <span className="chat-content">{msg.message}</span>
                             </div>
                         ))}
                     </div>
-                    <div className="chat-input" style={{ borderTop: '1px solid #ddd', display: 'flex', gap: '8px', paddingTop: '8px', marginTop: '8px' }}>
+                    <div className="chat-input">
                         <input
+                            ref={chatInputRef}
                             type="text"
-                            className="input"
-                            style={{ flex: 1, padding: '6px' }}
-                            placeholder="输入消息..."
+                            placeholder="请输入消息..."
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    sendChatMessage(e.currentTarget.value);
-                                    e.currentTarget.value = '';
+                                if (e.key === 'Enter' && chatInputRef.current) {
+                                    sendChatMessage(chatInputRef.current.value);
+                                    chatInputRef.current.value = '';
                                 }
                             }}
-                            ref={chatInputRef}
                         />
-                        <button
-                            className="btn"
-                            style={{ padding: '6px 12px' }}
-                            onClick={(e) => {
-                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                sendChatMessage(input.value);
-                                input.value = '';
-                            }}
-                        >
-                            发送
+                        <button onClick={() => {
+                            if (chatInputRef.current) {
+                                sendChatMessage(chatInputRef.current.value);
+                                chatInputRef.current.value = '';
+                            }
+                        }} className="chat-submit-btn">
+                            提交
                         </button>
                     </div>
-                </div>
-
-                <div className="stats-section">
-                    {drawRequested && drawRequestedBy !== myId && (
-                        <div style={{ marginBottom: 8, padding: 8, background: "rgba(200, 109, 63, 0.1)", borderRadius: 4 }}>
-                            <div style={{ marginBottom: 4, fontSize: "14px", fontWeight: "bold", color: "#c86d3f" }}>
-                                对方请求平局
-                            </div>
-                            <div style={{ display: "flex", gap: 8 }}>
-                                <button className="btn" onClick={handleAcceptDraw} style={{ flex: 1, fontSize: "12px", padding: "4px 8px" }}>
-                                    同意
-                                </button>
-                                <button className="btn ghost" onClick={handleRejectDraw} style={{ flex: 1, fontSize: "12px", padding: "4px 8px" }}>
-                                    拒绝
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    {skipRequested && skipRequestedBy !== myId && (
-                        <div style={{ marginBottom: 8, padding: 8, background: "rgba(200, 109, 63, 0.1)", borderRadius: 4 }}>
-                            <div style={{ marginBottom: 4, fontSize: "14px", fontWeight: "bold", color: "#c86d3f" }}>
-                                对方请求换题
-                            </div>
-                            <div style={{ display: "flex", gap: 8 }}>
-                                <button className="btn" onClick={handleAcceptSkip} style={{ flex: 1, fontSize: "12px", padding: "4px 8px" }}>
-                                    同意
-                                </button>
-                                <button className="btn ghost" onClick={handleRejectSkip} style={{ flex: 1, fontSize: "12px", padding: "4px 8px" }}>
-                                    拒绝
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -653,7 +741,7 @@ export function PoemleRoomPage() {
                         style={{ width: "100%" }}
                         onClick={() => {
                             setRoomDestroyCountdown(null);
-                            navigate("/game/poemle");
+                            handleLeave();
                         }}
                     >
                         立即返回

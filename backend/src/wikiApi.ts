@@ -26,6 +26,11 @@ export function createWikiApiRouter(): Router {
       } else {
         getDb().prepare("DELETE FROM wiki_items WHERE target_type = ? AND target_id = ?").run('poet', id);
       }
+        const mp2={...payload,id};
+        delete mp2.wiki;
+        delete mp2.wiki_attributes;
+        await client.index('poets').updateDocuments([mp2]);
+
 
       res.json({ success: true });
     } catch (e) {
@@ -45,6 +50,11 @@ export function createWikiApiRouter(): Router {
       } else {
         getDb().prepare("DELETE FROM wiki_items WHERE target_type = ? AND target_id = ?").run('poetry', id);
       }
+        const mp={...payload,id};
+        delete mp.wiki;
+        delete mp.wiki_attributes;
+        await client.index('poetry').updateDocuments([mp]);
+
 
       res.json({ success: true });
     } catch (e) {

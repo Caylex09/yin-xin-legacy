@@ -428,7 +428,7 @@ export function PoemSnakeRoomPage() {
 
       const profile = await fetchProfile(API_BASE);
       const userId = profile?.uid ? Number(profile.uid) : 0;
-      // 只有对方请求平局时才显示提示（不显示给请求者自己）
+      // 只有对方请求结算时才显示提示（不显示给请求者自己）
       setDrawRequested(data.uid !== userId);
       setDrawRequestedBy(data.uid);
     });
@@ -438,7 +438,7 @@ export function PoemSnakeRoomPage() {
       setGameFinished(true);
       setGameResults(data.results);
       loadPlayerStats();
-      // 清除平局请求提示
+      // 清除结算请求提示
       setDrawRequested(false);
       setDrawRequestedBy(undefined);
     });
@@ -855,7 +855,7 @@ export function PoemSnakeRoomPage() {
               {drawRequested && (
                 <div style={{ marginBottom: 8, padding: 8, background: "rgba(200, 109, 63, 0.1)", borderRadius: 4 }}>
                   <div style={{ marginBottom: 4, fontSize: "14px", fontWeight: "bold", color: "#c86d3f" }}>
-                    对方请求平局
+                    {drawRequestedBy && allPlayers.find(p => p.uid === drawRequestedBy) ? `${allPlayers.find(p => p.uid === drawRequestedBy)?.username} ` : "对方"}请求提前结算
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="btn" onClick={handleAcceptDraw} style={{ flex: 1, fontSize: "12px", padding: "4px 8px" }}>
@@ -961,7 +961,7 @@ export function PoemSnakeRoomPage() {
                   <>
                     {isMatchRoom && roomOnline >= 2 && (
                       <button className="btn ghost" onClick={handleRequestDraw} style={{ width: "100%", marginTop: 8 }}>
-                        请求平局
+                        请求提前结算
                       </button>
                     )}
                     {inGame && (isMatchRoom ? roomOnline <= 1 : true) && (

@@ -1,0 +1,2 @@
+﻿const fs = require('fs'); let content = fs.readFileSync('src/pages/game/poemle/PoemlePage.tsx', 'utf8'); content = content.replace(/\{gameWon \? \\\\.\+出处隐藏中\\\\'/g, '{gameWon ? <><a style={{ color: \
+inherit\ }} href={\/poets/\\}>【{currentDailyPoem.dynasty ; \未知\}】{currentDailyPoem.authorName ; currentDailyPoem.author}</a>《<a style={{ color: \inherit\ }} href={\/poetry/\\}>{currentDailyPoem.title}</a>》</> : \？？？出处隐藏中\}'); fs.writeFileSync('src/pages/game/poemle/PoemlePage.tsx', content);

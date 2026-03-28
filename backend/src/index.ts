@@ -3,9 +3,11 @@ import cors from "cors";
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { MeiliSearch } from "meilisearch";
+// ... removed MeiliSearch
 import { createPoemSnakeApiRouter } from "./game/PoemSnake/poemSnakeApi";
 import { initializePoemSnake } from "./game/PoemSnake/poemSnakeState";
+import { setupPoemleSocket } from "./game/Poemle/poemleSocket";
+import { onlineUsers } from "./onlineApi";
 import { createAuthApiRouter } from "./authApi";
 import { createUserApiRouter } from "./userApi";
 import { createOnlineApiRouter } from "./onlineApi";
@@ -15,15 +17,10 @@ import { createAnnouncementApiRouter } from "./announcementApi";
 import { createWikiApiRouter } from "./wikiApi";
 import { createDiscussionApiRouter } from "./discussionApi";
 import { createTicketApiRouter } from "./ticketApi";
+import { createPoemleApiRouter } from "./game/Poemle/poemleApi";
+import { searchClient as client } from "./meiliClient";
 
-const MEILI_HOST = process.env.MEILI_HOST || "http://127.0.0.1:7700";
-const MEILI_API_KEY = process.env.MEILI_API_KEY || "";
 const PORT = Number(process.env.PORT || 3000);
-
-const client = new MeiliSearch({
-  host: MEILI_HOST,
-  apiKey: MEILI_API_KEY,
-});
 
 const app = express();
 const httpServer = createServer(app);
@@ -118,6 +115,7 @@ app.use(createWikiApiRouter());
 app.use(createDiscussionApiRouter());
 app.use(createTicketApiRouter());
 app.use(createPoemSnakeApiRouter());
+app.use(createPoemleApiRouter());
 
 app.use((_, res) => {
   res.status(404).json({ error: "Not Found" });
@@ -152,6 +150,9 @@ async function configureMeiliSearchIndexes() {
 
 // 初始化 PoemSnake 游戏（包括 WebSocket、游戏状态、房间清理等）
 initializePoemSnake(io);
+
+// 初始化 Poemle 寻花令游戏
+setupPoemleSocket(io, onlineUsers);
 
 // 配置 MeiliSearch 索引
 configureMeiliSearchIndexes().catch((e) => {

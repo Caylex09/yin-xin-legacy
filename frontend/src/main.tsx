@@ -35,6 +35,8 @@ import { AdminPoetryPage } from "./pages/admin/AdminPoetryPage";
 import { AdminPoetryEditPage } from "./pages/admin/AdminPoetryEditPage";
 import { PoemSnakePage } from "./pages/game/PoemSnakePage";
 import { PoemSnakeRoomPage } from "./pages/game/PoemSnakeRoomPage";
+import { PoemlePage } from "./pages/game/poemle/PoemlePage";
+import { PoemleRoomPage } from "./pages/game/poemle/PoemleRoomPage";
 import { PopularPage } from "./pages/PopularPage";
 import { AdminWikiPage } from "./pages/admin/AdminWikiPage";
 import { AdminPopularPage } from "./pages/admin/AdminPopularPage";
@@ -963,6 +965,12 @@ function App() {
           <Route path="/games" element={<GamesPage />} />
           <Route path="/game/poem-snake" element={<PoemSnakePage />} />
           <Route path="/game/poem-snake/room/:roomCode" element={<PoemSnakeRoomPage />} />
+          <Route path="/game/poemle" element={<PoemlePage />} />
+          <Route path="/game/poemle/daily5" element={<PoemlePage />} />
+          <Route path="/game/poemle/daily7" element={<PoemlePage />} />
+          <Route path="/game/poemle/daily" element={<PoemlePage />} />
+          <Route path="/game/poemle/match" element={<PoemlePage />} />
+          <Route path="/game/poemle/room/:roomCode" element={<PoemleRoomPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/changelog" element={<ChangelogPage />} />
           <Route path="/profile/:uid" element={<ProfilePage />} />
@@ -1579,6 +1587,12 @@ function GamesPage() {
       desc: "公屏随机古诗文，你需输入含高亮字的一句古诗词，在线人数为 x 获得 x 分；1 分可跳过一个字；支持 Ctrl+Enter 提交。支持 1v1 随机匹配对手和自建房与好友娱乐。1v1 匹配得分更高！",
       note: "灵感来源于 https://github.com/poem-snake/poem-snake",
     },
+    {
+      title: "寻花令",
+      link: "/game/poemle",
+      desc: "给出一句古诗进行猜测，类似于 Wordle 玩法，绿色表示位置和字均正确，黄色表示字正确但位置不对，灰色表示该字不在答案中。每天刷新三道试题，有高额奖励。",
+      note: "题目完全来源于藏诗阁。参考 https://xiaoce.fun/xunhualing",
+    }
   ];
 
   return (

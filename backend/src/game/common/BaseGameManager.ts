@@ -15,8 +15,8 @@ export abstract class BaseGameManager<TState, TRoom extends BaseRoom<TState>> {
     protected rooms: Map<string, TRoom> = new Map();
     protected matchmakingQueue: number[] = [];
     protected readonly MAX_ROOM_PLAYERS = 50;
-    protected readonly MIN_ROUNDS = 5;
-    protected readonly MAX_ROUNDS = 100;
+    protected MIN_ROUNDS = 5;
+    protected MAX_ROUNDS = 100;
 
     // ==================== 匹配系统 ====================
 

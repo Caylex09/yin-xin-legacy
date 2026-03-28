@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface ToastProps {
   message: string;
@@ -7,13 +7,18 @@ interface ToastProps {
   onClose: () => void;
 }
 
-export function Toast({ message, type = "info", duration = 3000, onClose }: ToastProps) {
+export function Toast({ message, type = "info", duration = 5000, onClose }: ToastProps) {
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      onClose();
+      onCloseRef.current();
     }, duration);
     return () => clearTimeout(timer);
-  }, [duration, onClose]);
+  }, [duration]);
 
   const bgColor = {
     info: "rgba(33, 150, 243, 0.9)",
@@ -37,9 +42,20 @@ export function Toast({ message, type = "info", duration = 3000, onClose }: Toas
         maxWidth: "400px",
         wordBreak: "break-word",
         animation: "slideIn 0.3s ease-out",
+        overflow: "hidden",
       }}
     >
-      {message}
+      <div style={{ position: "relative", zIndex: 1, paddingBottom: "4px" }}>{message}</div>
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          height: "4px",
+          background: "rgba(255, 255, 255, 0.7)",
+          animation: `toastProgress ${duration}ms linear forwards`
+        }}
+      />
       <style>{`
         @keyframes slideIn {
           from {
@@ -49,6 +65,14 @@ export function Toast({ message, type = "info", duration = 3000, onClose }: Toas
           to {
             transform: translateX(0);
             opacity: 1;
+          }
+        }
+        @keyframes toastProgress {
+          from {
+            width: 100%;
+          }
+          to {
+            width: 0%;
           }
         }
       `}</style>

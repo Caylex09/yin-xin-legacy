@@ -1487,7 +1487,7 @@ export function setupPoemSnakeSocket(
       // 倒计时继续，不取消（即使有人离开）
     });
 
-    // 请求平局（1v1模式）
+    // 请求提前结算（1v1模式）
     socket.on("room_request_draw", async (data: { roomCode: string }) => {
       const result = matchmaking.requestDraw(data.roomCode, uid);
       if (!result.success) {
@@ -1507,7 +1507,7 @@ export function setupPoemSnakeSocket(
         return;
       }
 
-      // 通知所有玩家有平局请求（在聊天框显示）
+      // 通知所有玩家有提前结算请求（在聊天框显示）
       for (const player of room.players) {
         io.to(`user_${player.uid}`).emit("room_chat_message", {
           type: "system",
@@ -1515,13 +1515,13 @@ export function setupPoemSnakeSocket(
             id: `draw_request_${Date.now()}_${player.uid}`,
             userId: "system",
             username: "系统",
-            message: `${user.username} 请求平局`,
+            message: `${user.username} 请求提前结算`,
             timestamp: new Date().toISOString(),
           },
         });
       }
 
-      // 只通知对方显示平局请求提示（UI提示）
+      // 只通知对方显示提前结算请求提示（UI提示）
       const otherPlayer = room.players.find((p: any) => p.uid !== uid);
       if (otherPlayer) {
         io.to(`user_${otherPlayer.uid}`).emit("room_draw_requested", {
@@ -1531,7 +1531,7 @@ export function setupPoemSnakeSocket(
       }
     });
 
-    // 同意平局（1v1模式）
+    // 同意提前结算（1v1模式）
     socket.on("room_accept_draw", async (data: { roomCode: string }) => {
       try {
         const result = matchmaking.acceptDraw(data.roomCode, uid);
@@ -1571,7 +1571,7 @@ export function setupPoemSnakeSocket(
                     id: `room_finished_${Date.now()}_${data.roomCode}`,
                     userId: "system",
                     username: "系统",
-                    message: `房间 ${data.roomCode} 游戏结束（平局）。${scoreSummary}`,
+                    message: `房间 ${data.roomCode} 游戏结束（提前结算）。${scoreSummary}`,
                     timestamp: new Date().toISOString(),
                   },
                 });
@@ -1579,13 +1579,13 @@ export function setupPoemSnakeSocket(
             }
           }
 
-          // 平局后立即销毁房间
+          // 提前结算后立即销毁房间
           matchmaking.destroyRoom(data.roomCode);
           // 通知所有玩家房间已销毁
           for (const player of room.players) {
             io.to(`user_${player.uid}`).emit("room_destroyed", {
               roomCode: data.roomCode,
-              reason: "平局结束",
+              reason: "提前结算结束",
             });
           }
         } else {
@@ -1598,15 +1598,15 @@ export function setupPoemSnakeSocket(
                 id: `draw_accepted_${Date.now()}`,
                 userId: "system",
                 username: "系统",
-                message: `对方已同意平局`,
+                message: `对方已同意提前结算`,
                 timestamp: new Date().toISOString(),
               },
             });
           }
         }
       } catch (error) {
-        console.error("同意平局错误:", error);
-        socket.emit("room_error", { error: "处理平局请求时出错" });
+        console.error("同意提前结算错误:", error);
+        socket.emit("room_error", { error: "处理提前结算请求时出错" });
       }
     });
 
@@ -1868,7 +1868,7 @@ export function setupPoemSnakeSocket(
       }
     });
 
-    // 拒绝平局（1v1模式）
+    // 拒绝提前结算（1v1模式）
     socket.on("room_reject_draw", async (data: { roomCode: string }) => {
       const result = matchmaking.rejectDraw(data.roomCode, uid);
       if (!result.success) {
@@ -1888,21 +1888,21 @@ export function setupPoemSnakeSocket(
         return;
       }
 
-      // 找到请求平局的人
+      // 找到请求提前结算的人
       const drawRequester = room.players.find((p: any) => p.uid !== uid);
       if (drawRequester) {
-        // 通知请求平局的人，对方拒绝了（在聊天框显示）
+        // 通知请求提前结算的人，对方拒绝了（在聊天框显示）
         io.to(`user_${drawRequester.uid}`).emit("room_chat_message", {
           type: "system",
           message: {
             id: `draw_rejected_${Date.now()}`,
             userId: "system",
             username: "系统",
-            message: `${user.username} 拒绝平局`,
+            message: `${user.username} 拒绝提前结算`,
             timestamp: new Date().toISOString(),
           },
         });
-        // 清除平局请求提示
+        // 清除提前结算请求提示
         io.to(`user_${drawRequester.uid}`).emit("room_draw_requested", {
           uid: 0,
           username: "",
@@ -1916,7 +1916,7 @@ export function setupPoemSnakeSocket(
           id: `draw_rejected_self_${Date.now()}`,
           userId: "system",
           username: "系统",
-          message: `你拒绝了平局请求`,
+          message: `你拒绝了提前结算请求`,
           timestamp: new Date().toISOString(),
         },
       });

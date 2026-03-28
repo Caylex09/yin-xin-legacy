@@ -1,14 +1,6 @@
 import { Router, Request, Response } from "express";
-import { MeiliSearch } from "meilisearch";
 import { getDb } from "./db";
-
-const MEILI_HOST = process.env.MEILI_HOST || "http://127.0.0.1:7700";
-const MEILI_API_KEY = process.env.MEILI_API_KEY || "";
-
-const client = new MeiliSearch({
-  host: MEILI_HOST,
-  apiKey: MEILI_API_KEY,
-});
+import { searchClient as client } from "./meiliClient";
 
 type PoetrySearchBody = {
   q?: string;

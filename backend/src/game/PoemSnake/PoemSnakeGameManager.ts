@@ -442,7 +442,7 @@ export class PoemSnakeGameManager extends BaseGameManager<PoemSnakeState, BaseRo
     public requestDraw(roomCode: string, uid: number) {
         const room = this.rooms.get(roomCode);
         if (!room || room.status !== "playing") return { success: false, error: "房间不符合条件" };
-        if (room.activeVotes.has("draw")) return { success: false, error: "已有平局请求进行中" };
+        if (room.activeVotes.has("draw")) return { success: false, error: "已有提前结算请求进行中" };
         this.initiateVote(roomCode, "draw", uid);
         return { success: true };
     }
