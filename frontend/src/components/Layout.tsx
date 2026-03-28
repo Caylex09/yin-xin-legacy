@@ -75,11 +75,11 @@ export function Layout({ children }: React.PropsWithChildren) {
               <Link className="btn ghost" to={`/profile/${profile.uid}`}>
                 个人主页
               </Link>
-              {isAdmin && (
+              {isAdmin ? (
                 <Link className="btn ghost" to="/admin">
                   后台
                 </Link>
-              )}
+              ) : null}
               <button
                 className="btn"
                 onClick={() => {
