@@ -1592,7 +1592,7 @@ function GamesPage() {
       link: "/game/poemle",
       desc: "给出一句古诗进行猜测，类似于 Wordle 玩法，绿色表示位置和字均正确，黄色表示字正确但位置不对，灰色表示该字不在答案中。每天刷新三道试题，有高额奖励。",
       note: "题目完全来源于藏诗阁。参考 https://xiaoce.fun/xunhualing",
-    }
+    },
   ];
 
   return (

@@ -1,12 +1,34 @@
-import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { API_BASE } from "../config";
-import { initAuthUI } from "../auth";
+import { fetchProfile, getToken, clearToken, type ProfileWithRole } from "../auth";
 
 export function Layout({ children }: React.PropsWithChildren) {
+  const [profile, setProfile] = useState<ProfileWithRole | null>(null);
+  const location = useLocation();
+
   useEffect(() => {
-    initAuthUI(API_BASE);
+    const token = getToken();
+    if (token) {
+      fetchProfile(API_BASE).then(setProfile);
+    }
   }, []);
+
+  const isAdmin = profile && profile.role && profile.role > 0;
+  const isWikiOrSuperAdmin = profile && (profile.isSuperAdmin === 1 || profile.isWikiAdmin === 1);
+
+  let quickEditLink = null;
+  if (isWikiOrSuperAdmin) {
+    const matchPoetry = location.pathname.match(/^\/poetry\/([^/]+)$/);
+    if (matchPoetry) {
+      quickEditLink = `/admin/poetry/${matchPoetry[1]}`;
+    }
+    const matchPoet = location.pathname.match(/^\/poet\/([^/]+)$/);
+    if (matchPoet) {
+      quickEditLink = `/admin/poet/${matchPoet[1]}`;
+    }
+  }
+
   return (
     <div className="page">
       <header className="topbar">
@@ -39,7 +61,46 @@ export function Layout({ children }: React.PropsWithChildren) {
             <span className="label">更新日志</span>
           </Link>
         </nav>
-        <div className="auth-actions" id="auth-actions"></div>
+        <div className="auth-actions" id="auth-actions">
+          {profile ? (
+            <>
+              {quickEditLink && (
+                <Link className="btn ghost" to={quickEditLink} style={{ color: "#e6a23c" }}>
+                  快速编辑
+                </Link>
+              )}
+              <span className="welcome">
+                你好，{profile.username}{isAdmin ? " · 管理员" : ""}
+              </span>
+              <Link className="btn ghost" to={`/profile/${profile.uid}`}>
+                个人主页
+              </Link>
+              {isAdmin && (
+                <Link className="btn ghost" to="/admin">
+                  后台
+                </Link>
+              )}
+              <button
+                className="btn"
+                onClick={() => {
+                  clearToken();
+                  window.location.reload();
+                }}
+              >
+                登出
+              </button>
+            </>
+          ) : (
+            <>
+              <Link className="btn ghost" to="/login">
+                登录
+              </Link>
+              <Link className="btn" to="/register">
+                注册
+              </Link>
+            </>
+          )}
+        </div>
       </header>
       <main className="main">{children}</main>
       <footer className="footer">
