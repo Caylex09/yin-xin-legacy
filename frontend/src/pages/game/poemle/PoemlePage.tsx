@@ -392,7 +392,7 @@ export function PoemlePage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
                     <div className="result-list" style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => navigateToView("五言")}>
                         <h3 style={{ color: '#b85c32', fontSize: '24px', margin: '0 0 10px 0' }}>每日五言</h3>
-                        <p style={{ color: '#8f694a', margin: '0 0 10px 0' }}>找出今天隐藏的五言古诗句！</p>
+                        <p style={{ color: '#8f694a', margin: '0 0 10px 0' }}>找出今天隐藏的五言古诗句</p>
                         {dailyStats['五言'] && Object.keys(dailyStats['五言']).length > 0 ? (
                             <span style={{ fontSize: '14px', background: 'rgba(184, 92, 50, 0.1)', padding: '4px 8px', borderRadius: '12px', color: '#b85c32' }}>首次: {dailyStats['五言'].first} 次 | 最佳: {dailyStats['五言'].best} 次</span>
                         ) : dailyGuesses['五言']?.length > 0 ? (

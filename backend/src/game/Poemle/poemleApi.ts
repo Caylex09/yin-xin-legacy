@@ -182,6 +182,12 @@ poemleRouter.get('/api/game/poemle/daily', async (req: Request, res: Response) =
 
 let cachedCharFreqs: { char: string, count: number }[] | null = null;
 
+export function clearPoemleCache() {
+    cachedDailyPoems = null;
+    lastSeedStr = '';
+    cachedCharFreqs = null;
+}
+
 poemleRouter.get('/api/game/poemle/chars', async (req: Request, res: Response) => {
     try {
         if (cachedCharFreqs) {

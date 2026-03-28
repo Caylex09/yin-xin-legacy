@@ -2,6 +2,7 @@ import { Router } from "express";
 import { MeiliSearch } from "meilisearch";
 import { requireWikiAdmin } from "./middleware";
 import { getDb } from "./db";
+import { clearPoemleCache } from "./game/Poemle/poemleApi";
 
 const MEILI_HOST = process.env.MEILI_HOST || "http://127.0.0.1:7700";
 const MEILI_API_KEY = process.env.MEILI_API_KEY || "";
@@ -26,10 +27,10 @@ export function createWikiApiRouter(): Router {
       } else {
         getDb().prepare("DELETE FROM wiki_items WHERE target_type = ? AND target_id = ?").run('poet', id);
       }
-        const mp2={...payload,id};
-        delete mp2.wiki;
-        delete mp2.wiki_attributes;
-        await client.index('poets').updateDocuments([mp2]);
+      const mp2 = { ...payload, id };
+      delete mp2.wiki;
+      delete mp2.wiki_attributes;
+      await client.index('poets').updateDocuments([mp2]);
 
 
       res.json({ success: true });
@@ -50,12 +51,12 @@ export function createWikiApiRouter(): Router {
       } else {
         getDb().prepare("DELETE FROM wiki_items WHERE target_type = ? AND target_id = ?").run('poetry', id);
       }
-        const mp={...payload,id};
-        delete mp.wiki;
-        delete mp.wiki_attributes;
-        await client.index('poetry').updateDocuments([mp]);
+      const mp = { ...payload, id };
+      delete mp.wiki;
+      delete mp.wiki_attributes;
+      await client.index('poetry').updateDocuments([mp]);
 
-
+      clearPoemleCache();
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: (e as Error).message });
