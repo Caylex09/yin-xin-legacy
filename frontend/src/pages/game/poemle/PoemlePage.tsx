@@ -386,6 +386,49 @@ export function PoemlePage() {
         }
     };
 
+    const handleShare = () => {
+        if (!dailyData || !dailyData.date) return;
+
+        const guesses = dailyGuesses[activeView] || [];
+        const stats = dailyStats[activeView] || {};
+
+        const lines = guesses.map(guess => {
+            const isAllGreen = guess.every(c => c.verdict === 'green');
+            const halfLen = Math.floor(guess.length / 2);
+
+            const toEmoji = (cell: any) => {
+                if (activeView === '自由') {
+                    if (!cell.char || cell.char === ' ') {
+                        return isAllGreen ? '🟩' : '⬜';
+                    }
+                }
+                if (cell.verdict === 'green') return '🟩';
+                if (cell.verdict === 'yellow') return '🟨';
+                return '⬜';
+            };
+
+            const part1 = guess.slice(0, halfLen).map(toEmoji).join('');
+            const part2 = guess.slice(halfLen).map(toEmoji).join('');
+
+            return `${part1} ${part2}`;
+        }).join('\n');
+
+        const viewTypeMap: Record<string, string> = {
+            '五言': 'daily5',
+            '七言': 'daily7',
+            '自由': 'daily'
+        };
+        const url = `https://yin-xin.fun/game/poemle/${viewTypeMap[activeView] || 'daily'}`;
+
+        const text = `『吟心』#寻花令-每日挑战-${activeView}#\n${dailyData.date}\n${lines}\n本次记录：${guesses.length} 次\n首次记录：${stats.first ?? guesses.length} 次\n最佳记录：${stats.best ?? guesses.length} 次\n${url}`;
+
+        navigator.clipboard.writeText(text).then(() => {
+            setToast({ message: "成绩已复制到剪贴板，快去分享吧！", type: "success" });
+        }).catch(() => {
+            setToast({ message: "复制失败，请重试", type: "error" });
+        });
+    };
+
     const renderLobby = () => {
         return (
             <section className="results" style={{ marginTop: '0' }}>
@@ -572,8 +615,9 @@ export function PoemlePage() {
                                         最佳记录：{dailyStats[activeView]?.best ?? (dailyGuesses[activeView] || []).length} 次
                                     </p>
                                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                                        <button className="btn" onClick={() => navigateToView("lobby")}>回到大厅</button>
-                                        <button className="btn" style={{ backgroundColor: '#c9b458', borderColor: '#c9b458' }} onClick={() => {
+                                        <button className="btn ghost" onClick={() => navigateToView("lobby")}>回到大厅</button>
+                                        <button className="btn" style={{ backgroundColor: '#5eb95e', borderColor: '#5eb95e' }} onClick={handleShare}>分享成绩</button>
+                                        <button className="btn" style={{ backgroundColor: '#e67e22', borderColor: '#e67e22' }} onClick={() => {
                                             const newGuesses = { ...dailyGuesses, [activeView]: [] };
                                             setDailyGuesses(newGuesses);
                                             setGameWon(false);
