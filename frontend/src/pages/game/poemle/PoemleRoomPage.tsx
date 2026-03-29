@@ -51,6 +51,16 @@ export function PoemleRoomPage() {
     const [skipRequested, setSkipRequested] = useState(false);
     const [skipRequestedBy, setSkipRequestedBy] = useState<string | undefined>(undefined);
 
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const isChatOpenRef = useRef(false);
+    useEffect(() => {
+        isChatOpenRef.current = isChatOpen;
+        if (isChatOpen) setUnreadCount(0);
+    }, [isChatOpen]);
+
+    const [isVoteOpen, setIsVoteOpen] = useState(false);
+
     const [toast, setToast] = useState<{ message: string, type: 'info' | 'error' | 'success' } | null>(null);
     const [room, setRoom] = useState<RoomState | null>(null);
     const [myId, setMyId] = useState<string>("");
@@ -313,6 +323,10 @@ export function PoemleRoomPage() {
                 if (id) chatIdsRef.current.add(id);
                 setChatMessages((prev) => [...prev.slice(-49), data.message]);
 
+                if (!isChatOpenRef.current) {
+                    setUnreadCount(prev => prev + 1);
+                }
+
                 const text = data.message.message || "";
                 // 监听投票结果自动清除投票面板
                 if (id.startsWith("end_vote_result_") || text.includes("结束房间投票")) {
@@ -499,36 +513,6 @@ export function PoemleRoomPage() {
                         <button className="btn ghost" onClick={handleLeave}>
                             ← 返回房间
                         </button>
-                        {room.status === 'playing' && !drawRequested && (
-                            <button className="btn ghost" onClick={handleRequestDraw}>
-                                提前结算
-                            </button>
-                        )}
-                        {room.status === 'playing' && drawRequested && drawRequestedBy !== myId && (
-                            <>
-                                <span style={{ color: '#c86d3f', alignSelf: 'center', fontWeight: 'bold', marginLeft: '8px' }}>{drawRequestedBy && room.players[drawRequestedBy] ? `${room.players[drawRequestedBy].name} ` : '对方'}请求提前结算:</span>
-                                <button className="btn" onClick={handleAcceptDraw}>同意</button>
-                                <button className="btn ghost" onClick={handleRejectDraw}>拒绝</button>
-                            </>
-                        )}
-                        {room.status === 'playing' && drawRequested && drawRequestedBy === myId && (
-                            <button className="btn ghost" disabled>已申请提前结算</button>
-                        )}
-                        {room.status === 'playing' && !skipRequested && (
-                            <button className="btn ghost" onClick={handleRequestSkip}>
-                                请求换题
-                            </button>
-                        )}
-                        {room.status === 'playing' && skipRequested && skipRequestedBy !== myId && (
-                            <>
-                                <span style={{ color: '#c86d3f', alignSelf: 'center', fontWeight: 'bold', marginLeft: '8px' }}>{skipRequestedBy && room.players[skipRequestedBy] ? `${room.players[skipRequestedBy].name} ` : '对方'}请求换题:</span>
-                                <button className="btn" onClick={handleAcceptSkip}>同意</button>
-                                <button className="btn ghost" onClick={handleRejectSkip}>拒绝</button>
-                            </>
-                        )}
-                        {room.status === 'playing' && skipRequested && skipRequestedBy === myId && (
-                            <button className="btn ghost" disabled>已请求换题</button>
-                        )}
                     </div>
                     <div style={{ textAlign: 'center' }}>
                         <h2 style={{ margin: 0, color: '#b85c32', fontSize: '24px' }}>
@@ -675,41 +659,187 @@ export function PoemleRoomPage() {
                 </div>
             </section>
 
-            <div className="right-bottom">
-                <div className="chat-section">
-                    <h3>聊天室</h3>
-                    <div className="chat-messages">
-                        {chatMessages.map((msg, i) => (
-                            <div key={i} className="chat-message">
-                                <span className="chat-username" style={{ color: msg.userId === myId ? '#1976d2' : undefined }}>
-                                    {msg.username}:
-                                </span>
-                                <span className="chat-content">{msg.message}</span>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="chat-input">
-                        <input
-                            ref={chatInputRef}
-                            type="text"
-                            placeholder="请输入消息..."
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && chatInputRef.current) {
+            {/* 左下角 - 聊天组件 */}
+            <div style={{
+                position: 'fixed',
+                left: '20px',
+                bottom: '20px',
+                zIndex: 100,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: '10px'
+            }}>
+                {isChatOpen && (
+                    <div className="chat-section" style={{
+                        width: '320px',
+                        height: '400px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        background: '#fff',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        border: '1px solid rgba(184, 92, 50, 0.2)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <h3 style={{ margin: 0, fontSize: '16px', color: '#b85c32' }}>聊天室</h3>
+                            <button className="btn ghost" style={{ padding: '0px 6px', height: '24px', fontSize: '12px' }} onClick={() => setIsChatOpen(false)}>✕</button>
+                        </div>
+                        <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', marginBottom: '10px' }}>
+                            {chatMessages.map((msg, i) => (
+                                <div key={i} className="chat-message" style={{ marginBottom: '8px', fontSize: '14px', lineHeight: '1.4' }}>
+                                    <span className="chat-username" style={{ color: msg.userId === myId ? '#1976d2' : '#b85c32', fontWeight: 'bold', marginRight: '4px' }}>
+                                        {msg.username}:
+                                    </span>
+                                    <span className="chat-content" style={{ color: '#333', wordBreak: 'break-word' }}>{msg.message}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="chat-input" style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                                ref={chatInputRef}
+                                type="text"
+                                placeholder="请输入消息..."
+                                style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && chatInputRef.current) {
+                                        sendChatMessage(chatInputRef.current.value);
+                                        chatInputRef.current.value = '';
+                                    }
+                                }}
+                            />
+                            <button onClick={() => {
+                                if (chatInputRef.current) {
                                     sendChatMessage(chatInputRef.current.value);
                                     chatInputRef.current.value = '';
                                 }
-                            }}
-                        />
-                        <button onClick={() => {
-                            if (chatInputRef.current) {
-                                sendChatMessage(chatInputRef.current.value);
-                                chatInputRef.current.value = '';
-                            }
-                        }} className="chat-submit-btn">
-                            提交
-                        </button>
+                            }} className="btn" style={{ padding: '6px 12px' }}>
+                                发送
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
+                <button
+                    className="btn ghost"
+                    style={{
+                        background: '#fff',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                        position: 'relative',
+                        padding: '10px 20px',
+                        borderRadius: '25px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 'bold',
+                        color: '#333'
+                    }}
+                    onClick={() => setIsChatOpen(!isChatOpen)}
+                >
+                    💬 {isChatOpen ? '收起聊天' : '展开聊天'}
+                    {!isChatOpen && unreadCount > 0 && (
+                        <span style={{
+                            position: 'absolute', top: '-5px', right: '-5px',
+                            background: '#e74c3c', color: '#fff',
+                            borderRadius: '10px', padding: '2px 6px', fontSize: '12px',
+                            fontWeight: 'bold', minWidth: '20px', textAlign: 'center'
+                        }}>
+                            {unreadCount}
+                        </span>
+                    )}
+                </button>
+            </div>
+
+            {/* 右下角悬浮操作组件 */}
+            <div style={{
+                position: 'fixed',
+                right: '20px',
+                bottom: '20px',
+                zIndex: 100,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: '10px'
+            }}>
+                {isVoteOpen && room.status === 'playing' && (
+                    <div style={{
+                        background: '#fff',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(184, 92, 50, 0.2)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                        alignItems: 'flex-end',
+                        minWidth: '200px'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '4px' }}>
+                            <h3 style={{ margin: 0, fontSize: '14px', color: '#888' }}>房间操作</h3>
+                            <button className="btn ghost" style={{ padding: '0px 6px', height: '20px', fontSize: '12px' }} onClick={() => setIsVoteOpen(false)}>✕</button>
+                        </div>
+
+                        {!drawRequested && (
+                            <button className="btn ghost" style={{ width: '100%', background: '#faf3e8' }} onClick={() => { handleRequestDraw(); setIsVoteOpen(false); }}>
+                                提前结算
+                            </button>
+                        )}
+                        {drawRequested && drawRequestedBy !== myId && (
+                            <div style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#faf3e8', display: 'flex', flexDirection: 'column', gap: '8px', boxSizing: 'border-box' }}>
+                                <span style={{ color: '#c86d3f', fontSize: '14px', fontWeight: 'bold' }}>{drawRequestedBy && room.players[drawRequestedBy] ? `${room.players[drawRequestedBy].name} ` : '对方'}请求提前结算</span>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button className="btn" style={{ flex: 1, padding: '4px' }} onClick={handleAcceptDraw}>同意</button>
+                                    <button className="btn ghost" style={{ flex: 1, padding: '4px', background: '#fff' }} onClick={handleRejectDraw}>拒绝</button>
+                                </div>
+                            </div>
+                        )}
+                        {drawRequested && drawRequestedBy === myId && (
+                            <button className="btn ghost" disabled style={{ width: '100%', background: '#f5f5f5', opacity: 0.8 }}>已申请提前结算</button>
+                        )}
+
+                        {!skipRequested && (
+                            <button className="btn ghost" style={{ width: '100%', background: '#faf3e8' }} onClick={() => { handleRequestSkip(); setIsVoteOpen(false); }}>
+                                请求换题
+                            </button>
+                        )}
+                        {skipRequested && skipRequestedBy !== myId && (
+                            <div style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#faf3e8', display: 'flex', flexDirection: 'column', gap: '8px', boxSizing: 'border-box' }}>
+                                <span style={{ color: '#c86d3f', fontSize: '14px', fontWeight: 'bold' }}>{skipRequestedBy && room.players[skipRequestedBy] ? `${room.players[skipRequestedBy].name} ` : '对方'}请求换题</span>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button className="btn" style={{ flex: 1, padding: '4px' }} onClick={handleAcceptSkip}>同意</button>
+                                    <button className="btn ghost" style={{ flex: 1, padding: '4px', background: '#fff' }} onClick={handleRejectSkip}>拒绝</button>
+                                </div>
+                            </div>
+                        )}
+                        {skipRequested && skipRequestedBy === myId && (
+                            <button className="btn ghost" disabled style={{ width: '100%', background: '#f5f5f5', opacity: 0.8 }}>已请求换题</button>
+                        )}
+                    </div>
+                )}
+
+                {room.status === 'playing' && (
+                    <button
+                        className="btn ghost"
+                        style={{
+                            background: '#fff',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            position: 'relative',
+                            padding: '10px 20px',
+                            borderRadius: '25px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontWeight: 'bold',
+                            color: '#333'
+                        }}
+                        onClick={() => setIsVoteOpen(!isVoteOpen)}
+                    >
+                        ⚙️ {isVoteOpen ? '收起操作' : '展开操作'}
+                        {!isVoteOpen && ((drawRequested && drawRequestedBy !== myId) || (skipRequested && skipRequestedBy !== myId)) && (
+                            <span style={{
+                                position: 'absolute', top: '-5px', right: '-5px',
+                                background: '#e74c3c', width: '14px', height: '14px', borderRadius: '50%',
+                                boxShadow: '0 0 4px rgba(231,76,60,0.5)'
+                            }}></span>
+                        )}
+                    </button>
+                )}
             </div>
 
             {roomDestroyCountdown !== null && (<div
